@@ -428,6 +428,15 @@
   .modal-box .form-field input{width:100%; padding:11px 12px; border:1px solid var(--border); border-radius:var(--r-sm); background:var(--surface-2); color:var(--ink); font-size:16px; box-sizing:border-box;}
   .modal-actions{display:flex; justify-content:flex-end; gap:10px; margin-top:18px;}
   @media(max-width:480px){.modal-box{padding:20px; border-radius:var(--r-lg);} .modal-actions{flex-direction:column-reverse;} .modal-actions .btn{width:100%;}}
+
+  /* Confirmation de suppression (remplace le window.confirm() natif du navigateur,
+     hors thème, par une modale cohérente avec le reste de l'appli). */
+  .modal-box.danger-modal{border-color:color-mix(in srgb, var(--danger) 40%, var(--border)); box-shadow:var(--shadow-md), 0 0 0 1px color-mix(in srgb, var(--danger) 12%, transparent);}
+  .danger-modal-icon{width:44px; height:44px; border-radius:var(--r-sm); background:color-mix(in srgb, var(--danger) 16%, var(--surface-2)); color:var(--danger); display:flex; align-items:center; justify-content:center; margin-bottom:14px;}
+  .danger-modal-icon svg{width:22px; height:22px;}
+  .delete-confirm-text{font-size:13.5px; color:var(--ink-soft); line-height:1.55; margin:0;}
+  .delete-confirm-text b{color:var(--ink); font-weight:700;}
+  .delete-confirm-warn{display:block; margin-top:8px; color:var(--danger); font-weight:600; font-size:12.5px;}
   body.privacy-on .locked-panel{display:none;}
   body.privacy-on .field-row.locked{display:none;}
   body.privacy-on .mini-price{display:none;}
@@ -687,6 +696,20 @@
             <button class="btn btn-primary" id="loginSubmitBtn">Se connecter</button>
           </div>
           <div id="loginMsg" class="form-msg"></div>
+        </div>
+      </div>
+
+      <div id="deleteConfirmModal" class="modal-overlay" style="display:none;">
+        <div class="modal-box danger-modal">
+          <div class="danger-modal-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+          </div>
+          <h3>Supprimer cet objet ?</h3>
+          <p class="delete-confirm-text" id="deleteConfirmText"></p>
+          <div class="modal-actions">
+            <button class="btn btn-secondary" id="deleteConfirmCancelBtn">Annuler</button>
+            <button class="btn btn-danger" id="deleteConfirmOkBtn">Supprimer définitivement</button>
+          </div>
         </div>
       </div>
 
@@ -2956,10 +2979,40 @@ refreshAuthState().then(()=> loadAll()).then(()=> initFranceMap());
   const ficheContent = document.getElementById('ficheContent');
   if(!ficheContent) return;
 
+  // Modale de confirmation (remplace window.confirm(), hors thème) — retourne
+  // une Promise<boolean> résolue selon le bouton cliqué (ou un clic hors modale
+  // / touche Échap, traités comme une annulation).
+  function askDeleteConfirmation(o){
+    return new Promise(resolve => {
+      const modal = document.getElementById('deleteConfirmModal');
+      const text = document.getElementById('deleteConfirmText');
+      const okBtn = document.getElementById('deleteConfirmOkBtn');
+      const cancelBtn = document.getElementById('deleteConfirmCancelBtn');
+      text.innerHTML = `Supprimer définitivement <b>${esc(o.titre)}</b> (${esc(o.id_public)}) et toutes ses photos ?<span class="delete-confirm-warn">Cette action est irréversible.</span>`;
+      modal.style.display = 'flex';
+      function cleanup(result){
+        modal.style.display = 'none';
+        okBtn.removeEventListener('click', onOk);
+        cancelBtn.removeEventListener('click', onCancel);
+        modal.removeEventListener('click', onOverlay);
+        document.removeEventListener('keydown', onKey);
+        resolve(result);
+      }
+      function onOk(){ cleanup(true); }
+      function onCancel(){ cleanup(false); }
+      function onOverlay(e){ if(e.target === modal) cleanup(false); }
+      function onKey(e){ if(e.key === 'Escape') cleanup(false); }
+      okBtn.addEventListener('click', onOk);
+      cancelBtn.addEventListener('click', onCancel);
+      modal.addEventListener('click', onOverlay);
+      document.addEventListener('keydown', onKey);
+    });
+  }
+
   async function handleDeleteObjet(uid){
     const o = ALL_OBJETS.find(x => x.uid === uid);
     if(!o) return;
-    if(!confirm(`Supprimer définitivement "${o.titre}" (${o.id_public}) et toutes ses photos ?\n\nCette action est irréversible.`)) return;
+    if(!await askDeleteConfirmation(o)) return;
 
     const delBtn = document.getElementById('deleteObjetBtn');
     const editBtn = document.getElementById('editObjetBtn');
