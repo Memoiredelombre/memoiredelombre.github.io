@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Mémoire de l'Ombre</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,400;0,500;0,600;1,400&family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
@@ -240,7 +240,155 @@
     .header-actions{gap:6px;}
     #loginBtn, #newObjetBtn, #advSearchToggle{width:40px; padding:0; gap:0; flex:none;}
     #loginBtnLabel, #newObjetBtn .btn-label, #advSearchToggle .btn-label{display:none;}
-    .auth-status{font-size:10px; padding:0 9px;}
+  }
+
+  /* ---------- Bas de menu desktop : connexion/déconnexion + Paramètres ----------
+     #loginBtn reste dans le topbar pour le mobile (dock en bas = pas de place
+     pour un pied de menu) mais disparaît en desktop, remplacé par le bloc
+     ci-dessous en pied de sidebar. Aucune logique dupliquée : #sidebarLoginBtn
+     déclenche un clic réel sur #loginBtn (mêmes règles métier), et un
+     MutationObserver recopie simplement son libellé/titre. */
+  @media(min-width:901px){#loginBtn{display:none;}}
+  .sidebar-footer{display:flex; flex-direction:column; gap:3px; padding-top:14px; margin-top:2px; border-top:1px solid var(--border);}
+  .sidebar-footer-btn{display:flex; align-items:center; gap:10px; width:100%; background:none; border:1px solid transparent; cursor:pointer; text-align:left; font-size:13px; font-weight:500; font-family:'Space Grotesk',sans-serif; color:var(--ink-soft); padding:10px 12px; border-radius:var(--r-sm); transition:background .15s ease, color .15s ease;}
+  .sidebar-footer-btn .ico{width:16px; height:16px; flex:none; display:flex; align-items:center; justify-content:center; opacity:.75;}
+  .sidebar-footer-btn .ico svg{width:100%; height:100%;}
+  .sidebar-footer-btn:hover{background:var(--accent-soft); color:var(--ink);}
+  .sidebar-footer-btn:hover .ico{opacity:1;}
+  .sidebar-footer-btn.account{padding:9px 12px;}
+  .sidebar-account-text{display:flex; flex-direction:column; min-width:0; line-height:1.35;}
+  /* overflow/ellipsis posés sur le TEXTE (#sidebarAccountStatusText) plutôt
+     que sur cette ligne flex entière : sinon le halo (box-shadow) de la
+     pastille verte, qui déborde de 2px autour d'elle, se faisait rogner par
+     l'overflow:hidden du conteneur. */
+  .sidebar-account-status{display:flex; align-items:center; gap:5px; font-size:10.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--ink-faint); padding:2px 0;}
+  #sidebarAccountStatusText{white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  /* Pastille de statut : grise par défaut (invité), verte une fois connecté
+     (.online, posée par le script en bas de page selon IS_ADMIN — jamais en
+     dur dans le texte, pour rester correcte même si le libellé change). */
+  .status-dot{width:6px; height:6px; border-radius:50%; background:var(--ink-faint); flex:none; transition:background .15s ease, box-shadow .15s ease;}
+  .status-dot.online{background:var(--success); box-shadow:0 0 0 2px color-mix(in srgb, var(--success) 25%, transparent);}
+  .sidebar-account-action{font-size:13px; font-weight:600; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .sidebar-footer-btn.account:hover .sidebar-account-action{color:var(--accent);}
+  @media(max-width:900px){.sidebar-footer{display:none;}}
+  @media(min-width:901px){
+    body.sidebar-hidden .sidebar-footer{align-items:center;}
+    body.sidebar-hidden .sidebar-footer-btn{width:44px; height:44px; justify-content:center; padding:0; gap:0;}
+    body.sidebar-hidden .sidebar-footer-btn .label-text, body.sidebar-hidden .sidebar-account-text{display:none;}
+  }
+
+  /* ---------- Page de connexion ----------
+     #loginModal garde .modal-overlay (fixed/inset/z-index) mais devient une
+     vraie page plein écran (fond opaque + carte large en 2 volets) au lieu
+     d'un petit popup — .login-page-overlay ne fait que surcharger le fond,
+     tout le reste (ids, JS de connexion) est strictement inchangé. */
+  #loginModal.login-page-overlay{
+    background:
+      radial-gradient(circle at 12% 18%, color-mix(in srgb, var(--accent) 12%, transparent), transparent 55%),
+      radial-gradient(circle at 88% 84%, color-mix(in srgb, var(--accent) 9%, transparent), transparent 50%),
+      var(--bg);
+    backdrop-filter:none; -webkit-backdrop-filter:none;
+  }
+  .login-page-card{width:100%; max-width:900px; max-height:calc(100vh - 40px); overflow-y:auto; min-height:460px; background:var(--surface); border:1px solid var(--border); border-radius:var(--r-lg); box-shadow:var(--shadow-md); display:grid; grid-template-columns:1fr 1fr;}
+  .login-page-brand{background:linear-gradient(160deg, color-mix(in srgb, var(--accent) 14%, var(--surface)), var(--surface) 75%); border-right:1px solid var(--border); padding:48px 42px; display:flex; flex-direction:column; justify-content:center; gap:14px; position:relative; overflow:hidden;}
+  .login-page-deco{position:absolute; right:-30px; bottom:-40px; width:220px; height:290px; color:var(--accent); opacity:.07; pointer-events:none;}
+  .login-page-deco svg{width:100%; height:100%;}
+  .login-page-mark{width:58px; height:58px; border-radius:16px; background:linear-gradient(155deg, var(--accent), var(--accent) 55%, color-mix(in srgb, var(--accent) 65%, black)); display:flex; align-items:center; justify-content:center; color:var(--accent-ink); box-shadow:var(--shadow), var(--glow); position:relative; z-index:1;}
+  .login-page-mark svg{width:22px; height:29px;}
+  .login-page-brand h1{font-family:'Space Grotesk',sans-serif; font-size:27px; font-weight:600; margin:8px 0 0; letter-spacing:-.01em; position:relative; z-index:1;}
+  /* Rapproché du titre (marge négative plutôt que de réduire le gap general
+     de .login-page-brand, qui espace aussi le logo au-dessus du titre). */
+  .login-page-tagline{color:var(--ink-soft); font-size:13.5px; margin:-8px 0 0; max-width:220px; line-height:1.5; position:relative; z-index:1;}
+  .login-page-form{padding:48px 44px; display:flex; flex-direction:column; justify-content:center;}
+  .login-page-form h3{font-family:'Space Grotesk',sans-serif; font-size:22px; font-weight:600; margin:0 0 6px;}
+  .login-page-sub{color:var(--ink-soft); font-size:12.5px; margin:0 0 24px;}
+  .login-page-form .form-field{margin-bottom:16px;}
+  .login-page-form .form-field label{display:block; font-size:11.5px; color:var(--ink-soft); margin-bottom:6px; font-weight:600;}
+  .login-page-form .form-field input{width:100%; padding:12px 14px; border:1px solid var(--border); border-radius:var(--r-sm); background:var(--surface-2); color:var(--ink); font-size:15px; box-sizing:border-box; transition:border-color .15s ease, box-shadow .15s ease;}
+  .login-page-form .form-field input:focus{outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft);}
+  /* Les CTA ne doivent JAMAIS bouger, que le message ("Connexion…",
+     "Identifiants incorrects.", etc.) soit vide ou long — "Continuer en
+     tant qu'invité" reste toujours sur sa propre ligne, en dessous.
+     Structure : .login-page-actions empile 2 lignes fixes en colonne,
+     chacune alignée à droite (align-items:flex-end) — la position de
+     chaque bouton ne dépend donc que de sa PROPRE ligne, jamais de l'autre :
+       1) .login-submit-row = #loginMsg + #loginSubmitBtn, groupés dans un
+          flex row SANS wrap : le message grandit vers la gauche, le bouton
+          "Se connecter" reste épinglé au bord droit, immobile.
+       2) #loginCancelBtn seul, sur sa propre ligne, bord droit aussi —
+          jamais affecté par la largeur du message au-dessus. */
+  .login-page-form .modal-actions.login-page-actions{display:flex; flex-direction:column; align-items:flex-end; gap:10px;}
+  .login-submit-row{display:flex; align-items:center; gap:10px; flex-wrap:nowrap; max-width:100%;}
+  /* min-height réserve la place de la ligne de texte même quand #loginMsg
+     est vide (avant tout envoi) : sans ça, la ligne vide n'a pas de "line
+     box" et le bouton "Se connecter" se décale de ~1px verticalement dès
+     qu'un message apparaît — imperceptible mais évitable. */
+  #loginMsg{flex:0 1 auto; max-width:220px; min-height:14px; text-align:right; white-space:normal; margin:0;}
+  #loginSubmitBtn{flex:none;}
+  @media(max-width:480px){
+    /* La règle générique .modal-actions .btn{width:100%} (et le
+       column-reverse qui l'accompagne) est pensée pour les petites modales
+       où les boutons s'empilent en pleine largeur — pas pour cette page de
+       connexion, où "Se connecter" doit rester un bouton compact à côté de
+       son message. On neutralise donc les deux ici, scopé à la page de
+       connexion uniquement (sélecteur plus spécifique = gagne quel que soit
+       l'ordre dans la feuille de styles). */
+    .login-page-form .modal-actions .btn{width:auto;}
+    #loginMsg{max-width:150px;}
+  }
+  @media(max-width:760px){
+    .login-page-card{grid-template-columns:1fr; max-width:440px;}
+    .login-page-brand{border-right:none; border-bottom:1px solid var(--border); padding:32px 28px 22px;}
+    .login-page-deco{display:none;}
+    .login-page-form{padding:30px 28px;}
+  }
+
+  /* ---------- Modale Paramètres (thème / confidentialité / mot de passe / export) ----------
+     Réutilise .modal-overlay/.modal-box. Les switches Thème et Confidentialité
+     ne font que déclencher les vrais boutons existants (#darkModeBtn,
+     #privacyToggleBtn) et refléter leur état, sans dupliquer la logique ;
+     Mot de passe et Export sont de nouvelles actions (voir le script en bas
+     de page) mais s'appuient uniquement sur l'API Supabase déjà utilisée
+     (sb.auth.updateUser) ou sur des mécanismes 100% natifs du navigateur
+     (Blob/téléchargement pour le CSV, window.print() pour le PDF) — aucune
+     dépendance externe, aucune clé/service supplémentaire.
+     Toutes les lignes ont une bordure basse pour un séparateur régulier ;
+     volontairement pas de règle "dernière ligne sans bordure" (fragile dès
+     qu'on ajoute/retire des lignes) — un filet avant "Fermer" reste propre. */
+  .settings-modal{max-width:400px;}
+  .settings-row{display:flex; align-items:center; justify-content:space-between; gap:16px; padding:14px 0; border-bottom:1px solid var(--border);}
+  .settings-row-label{display:flex; flex-direction:column; gap:2px;}
+  .settings-row-label strong{font-size:13.5px; font-weight:600; color:var(--ink);}
+  .settings-row-label span{font-size:11.5px; color:var(--ink-soft);}
+  .settings-switch{position:relative; width:42px; height:24px; border-radius:14px; background:var(--surface-2); border:1px solid var(--border); flex:none; cursor:pointer; padding:0; transition:background .15s ease, border-color .15s ease;}
+  .settings-switch .knob{position:absolute; top:2px; left:2px; width:18px; height:18px; border-radius:50%; background:var(--ink-faint); transition:transform .18s ease, background .15s ease;}
+  .settings-switch.on{background:var(--accent); border-color:var(--accent);}
+  .settings-switch.on .knob{transform:translateX(18px); background:var(--accent-ink);}
+
+  /* Mot de passe : mini-formulaire déroulé à la place de la ligne repliée
+     (jamais les deux à la fois — géré en JS), même styles de champ que les
+     autres modales via .modal-box .form-field (réutilisés tels quels). */
+  .settings-password-form{padding:2px 0 14px; border-bottom:1px solid var(--border); display:flex; flex-direction:column; gap:2px;}
+  .settings-password-actions{display:flex; justify-content:flex-end; gap:10px; margin-top:2px;}
+  .settings-password-actions .btn{height:36px; font-size:12.5px;}
+
+  /* Export : deux boutons compacts côte à côte (CSV / PDF). */
+  .settings-export-actions{display:flex; gap:8px; flex:none;}
+  .settings-export-actions .btn{height:36px; padding:0 14px; font-size:12.5px;}
+
+  /* Export PDF : conteneur cité par le JS de Paramètres, invisible à l'écran
+     et affiché seul (le reste de l'appli est masqué) lors de l'impression —
+     c'est l'impression "Enregistrer en PDF" du navigateur qui produit le
+     fichier, sans bibliothèque tierce. */
+  #printExportContainer{display:none;}
+  @media print{
+    body > *:not(#printExportContainer){display:none !important;}
+    #printExportContainer{display:block !important; padding:24px; color:#111; background:#fff;}
+    #printExportContainer h1{font-family:'Space Grotesk',sans-serif; font-size:17px; margin:0 0 4px;}
+    #printExportContainer .print-meta{font-size:10.5px; color:#555; margin-bottom:14px;}
+    #printExportContainer table{width:100%; border-collapse:collapse; font-size:9.5px;}
+    #printExportContainer th, #printExportContainer td{border:1px solid #999; padding:4px 6px; text-align:left; vertical-align:top;}
+    #printExportContainer th{background:#eee;}
   }
 
   .view{display:none;} .view.active{display:block;}
@@ -258,7 +406,12 @@
   .btn-danger:disabled{opacity:.5; cursor:default;}
   #advSearchToggle.active{background:var(--accent); color:var(--accent-ink); border-color:var(--accent); box-shadow:var(--glow);}
   .header-actions{display:flex; gap:8px; align-items:center; flex-wrap:wrap; justify-content:flex-end;}
-  .auth-status{font-size:11px; color:var(--ink-soft); font-family:'IBM Plex Mono',monospace; padding:0 12px; height:30px; display:inline-flex; align-items:center; background:var(--surface-2); border:1px solid var(--border); border-radius:20px;}
+  /* Le badge de statut de compte (#authStatus, "● Admin" / "○ Invité") reste
+     dans le DOM — applyAuthUI() du script d'origine lit/écrit son textContent
+     à chaque changement d'état et plante si l'élément n'existe plus — mais
+     n'est plus affiché en haut à droite : le statut vit désormais uniquement
+     dans le pied de la sidebar desktop (#sidebarAccountStatus). */
+  .auth-status{display:none;}
 
   /* ---------- KPI cards ---------- */
   .kpi-row{display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:24px; min-width:0;}
@@ -345,7 +498,7 @@
   .derniers-row .thumb-sm{width:64px; height:64px; border-radius:var(--r-sm); background:var(--surface-2); flex:none; overflow:hidden; display:flex; align-items:center; justify-content:center; color:var(--ink-faint); margin-top:1px;}
   .derniers-row .thumb-sm img{width:100%; height:100%; object-fit:cover;}
   .derniers-row .thumb-sm svg{width:22px; height:22px; opacity:.4;}
-  .derniers-row .titre{font-family:'Newsreader',serif; font-size:14.5px; font-weight:500; line-height:1.3;}
+  .derniers-row .titre{font-family:'Space Grotesk',sans-serif; font-size:14.5px; font-weight:500; line-height:1.3;}
   .derniers-row .date{display:flex; flex-direction:column; gap:3px; margin-top:5px;}
   .derniers-row .dr-type{font-size:10.5px; font-weight:700; color:var(--accent); text-transform:uppercase; letter-spacing:.04em;}
   .derniers-row .dr-when{font-size:11px; color:var(--ink-faint); font-family:'IBM Plex Mono',monospace;}
@@ -422,7 +575,7 @@
   .best-pv-photo img{width:100%; height:100%; object-fit:cover;}
   .best-pv-photo svg{width:32px; height:32px; opacity:.4;}
   .best-pv-body{flex:1; min-height:0; display:flex; flex-direction:column; justify-content:space-between; margin-top:10px;}
-  .best-pv-titre{font-family:'Newsreader',serif; font-size:14.5px; font-weight:500; line-height:1.3; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .best-pv-titre{font-family:'Space Grotesk',sans-serif; font-size:14.5px; font-weight:500; line-height:1.3; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
   .best-pv-type{font-size:10px; font-weight:600; color:var(--accent); text-transform:uppercase; letter-spacing:.05em; margin-top:2px;}
   .best-pv-stats-row{display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:10px;}
   .best-pv-substat{min-width:0; background:var(--surface-2); border:1px solid transparent; border-radius:8px; padding:8px 9px;}
@@ -449,10 +602,26 @@
   .foot-note{text-align:center; font-size:11px; color:var(--ink-faint); margin-top:34px; font-family:'IBM Plex Mono',monospace;}
   .foot-note + .foot-note{margin-top:12px;}
 
+  /* ---------- Galerie (grille façon Instagram) ----------
+     Contenu généré par le script additif en bas de page. Grille CSS simple,
+     toutes les tuiles carrées et de même taille (comme une grille de profil
+     Instagram) — pas d'effet "bento" ; seul le nombre de colonnes se réduit
+     sur mobile. */
+  .gallery-header{display:flex; align-items:center; justify-content:space-between; gap:14px; margin-bottom:18px;}
+  .gallery-header h2{font-family:'Space Grotesk',sans-serif; font-size:21px; font-weight:500; margin:0;}
+  .ig-gallery{display:grid; grid-template-columns:repeat(4, 1fr); gap:10px;}
+  @media(max-width:900px){.ig-gallery{grid-template-columns:repeat(3, 1fr);}}
+  @media(max-width:560px){.ig-gallery{grid-template-columns:repeat(3, 1fr); gap:3px;}}
+  .ig-tile{position:relative; overflow:hidden; border-radius:var(--r-md); background:var(--surface-2); border:1px solid var(--border); cursor:pointer; aspect-ratio:1/1; transition:transform .2s ease, box-shadow .2s ease;}
+  .ig-tile:hover{transform:translateY(-2px); box-shadow:var(--shadow-md), var(--glow);}
+  .ig-tile img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover; display:block;}
+  .ig-tile-caption{position:absolute; left:0; right:0; bottom:0; padding:18px 10px 8px; font-size:11.5px; font-weight:600; color:#fff; background:linear-gradient(0deg, rgba(0,0,0,.72), transparent); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .ig-empty{grid-column:1/-1; text-align:center; padding:60px 20px; color:var(--ink-faint); font-size:13.5px;}
+
   /* ---------- Modals ---------- */
   .modal-overlay{position:fixed; inset:0; background:rgba(5,4,2,.68); backdrop-filter:blur(6px); z-index:300; display:flex; align-items:center; justify-content:center; padding:20px;}
   .modal-box{background:var(--surface); border:1px solid var(--border); border-radius:var(--r-lg); padding:26px; width:100%; max-width:340px; max-height:calc(100vh - 40px); overflow-y:auto; box-sizing:border-box; box-shadow:var(--shadow-md);}
-  .modal-box h3{margin:0 0 18px; font-family:'Newsreader',serif; font-size:18px; font-weight:600;}
+  .modal-box h3{margin:0 0 18px; font-family:'Space Grotesk',sans-serif; font-size:18px; font-weight:600;}
   .modal-box .form-field{margin-bottom:14px;}
   .modal-box .form-field label{display:block; font-size:11px; color:var(--ink-soft); margin-bottom:5px; font-weight:500;}
   .modal-box .form-field input{width:100%; padding:11px 12px; border:1px solid var(--border); border-radius:var(--r-sm); background:var(--surface-2); color:var(--ink); font-size:16px; box-sizing:border-box;}
@@ -553,7 +722,7 @@
   .thumb img{width:100%; height:100%; object-fit:cover;}
   .fiche-mini .body{padding:13px 14px 14px;}
   .fiche-mini .id{font-family:'IBM Plex Mono',monospace; font-size:10px; color:var(--ink-faint); font-weight:600;}
-  .fiche-mini .titre{font-family:'Newsreader',serif; font-size:15.5px; font-weight:500; margin:5px 0 3px; line-height:1.3;}
+  .fiche-mini .titre{font-family:'Space Grotesk',sans-serif; font-size:15.5px; font-weight:500; margin:5px 0 3px; line-height:1.3;}
   .fiche-mini .sec{font-size:11.5px; color:var(--ink-soft); margin-bottom:10px;}
   .fiche-mini .foot{display:flex; justify-content:space-between; align-items:center;}
   .fiche-mini .prix{font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--ink); font-weight:600;}
@@ -566,7 +735,7 @@
   .fiche-list-row .thumb-list img{width:100%; height:100%; object-fit:cover;}
   .fiche-list-row .thumb-list svg{width:17px; height:17px; opacity:.4;}
   .fiche-list-row .id{font-family:'IBM Plex Mono',monospace; font-size:10px; color:var(--ink-faint); width:80px; flex:none; font-weight:600;}
-  .fiche-list-row .titre{font-family:'Newsreader',serif; font-size:14.5px; font-weight:500; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .fiche-list-row .titre{font-family:'Space Grotesk',sans-serif; font-size:14.5px; font-weight:500; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
   .fiche-list-row .sec{font-size:11.5px; color:var(--ink-soft); width:200px; flex:none; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
   .fiche-list-row .prix{font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--ink); width:90px; flex:none; text-align:right; font-weight:600;}
   .fiche-list-row .dots{flex:none;}
@@ -578,7 +747,7 @@
   .card{background:var(--surface); border:1px solid var(--border); border-radius:var(--r-lg); overflow:hidden; box-shadow:var(--shadow-md);}
   .card-top{display:flex; justify-content:space-between; align-items:flex-start; gap:16px; padding:22px 26px 18px; border-bottom:1px solid var(--border); flex-wrap:wrap; background:linear-gradient(135deg, color-mix(in srgb, var(--accent) 6%, transparent), transparent 60%);}
   .card-top .id{font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--ink-faint); font-weight:600;}
-  .card-top h2{font-family:'Newsreader',serif; font-weight:500; font-size:24px; margin:5px 0 3px; max-width:540px; line-height:1.3;}
+  .card-top h2{font-family:'Space Grotesk',sans-serif; font-weight:500; font-size:24px; margin:5px 0 3px; max-width:540px; line-height:1.3;}
   .card-top .sec{font-size:13px; color:var(--ink-soft);}
   .rarity-pill{display:flex; align-items:center; gap:8px; background:var(--accent-soft); border-radius:20px; padding:0 16px; height:40px; box-sizing:border-box; flex:none;}
   .rarity-pill .code{font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--accent); font-weight:700;}
@@ -647,7 +816,7 @@
   /* ---------- Form ---------- */
   .form-card{background:var(--surface); border:1px solid var(--border); border-radius:var(--r-lg); padding:26px 28px; max-width:820px; box-shadow:var(--shadow);}
   @media(max-width:600px){.form-card{padding:18px 16px;}}
-  .form-card h2{font-family:'Newsreader',serif; font-size:21px; font-weight:500; margin:0 0 20px;}
+  .form-card h2{font-family:'Space Grotesk',sans-serif; font-size:21px; font-weight:500; margin:0 0 20px;}
   .form-section{margin-bottom:22px;}
   .form-section h4{font-size:11.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-soft); margin:0 0 12px; padding-bottom:6px; border-bottom:1px solid var(--border); font-weight:700;}
   .form-section.locked h4{color:var(--private);}
@@ -686,11 +855,33 @@
       <nav class="tabs" id="tabs">
         <button class="nav-item active" data-view="dashboard"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg></span><span class="label-text">Tableau de bord</span></button>
         <button class="nav-item" data-view="catalogue"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="5" rx="1.5"/><path d="M5 9v9a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V9"/><path d="M10 13h4"/></svg></span><span class="label-text">Catalogue</span></button>
+        <!-- Onglet Galerie : data-view="galerie" est traité de façon 100% générique
+             par le gestionnaire de clic existant sur #tabs et par switchView()
+             (getElementById('view-'+name)) — aucune modification du script
+             principal nécessaire pour que cet onglet fonctionne. -->
+        <button class="nav-item" data-view="galerie" id="galerieTabBtn"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></span><span class="label-text">Galerie</span></button>
         <button class="nav-item" data-view="fiche" id="ficheTabBtn" style="display:none;"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h7l5 5v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h6"/></svg></span><span class="label-text">Fiche</span></button>
       </nav>
     </div>
 
     <div class="sidebar-spacer"></div>
+
+    <div class="sidebar-footer">
+      <button class="sidebar-footer-btn" id="sidebarSettingsBtn" type="button">
+        <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M12 3v2.4M12 18.6V21M21 12h-2.4M5.4 12H3M18.4 5.6l-1.7 1.7M7.3 16.7l-1.7 1.7M18.4 18.4l-1.7-1.7M7.3 7.3 5.6 5.6"/></svg></span>
+        <span class="label-text">Paramètres</span>
+      </button>
+      <button class="sidebar-footer-btn account" id="sidebarLoginBtn" type="button" title="Connexion administrateur">
+        <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="15" r="4"/><path d="M11 12 20 3M17 6l2 2M14 9l2 2"/></svg></span>
+        <span class="sidebar-account-text">
+          <span class="sidebar-account-status">
+            <span class="status-dot" id="sidebarStatusDot"></span>
+            <span id="sidebarAccountStatusText">Invité</span>
+          </span>
+          <span class="sidebar-account-action" id="sidebarLoginBtnLabel">Connexion</span>
+        </span>
+      </button>
+    </div>
   </aside>
 
   <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
@@ -729,16 +920,86 @@
 
     <div class="content">
 
-      <div id="loginModal" class="modal-overlay" style="display:none;">
-        <div class="modal-box">
-          <h3>Connexion administrateur</h3>
-          <div class="form-field"><label>Email</label><input type="email" id="loginEmail"></div>
-          <div class="form-field"><label>Mot de passe</label><input type="password" id="loginPassword"></div>
-          <div class="modal-actions">
-            <button class="btn btn-secondary" id="loginCancelBtn">Annuler</button>
-            <button class="btn btn-primary" id="loginSubmitBtn">Se connecter</button>
+      <div id="loginModal" class="modal-overlay login-page-overlay" style="display:none;">
+        <div class="login-page-card">
+          <div class="login-page-brand">
+            <div class="login-page-deco">
+              <svg viewBox="0 0 24 32" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="10.5" y="1" width="3" height="30" rx="0.5" fill="currentColor"/><rect x="7" y="7" width="10" height="3" rx="0.5" fill="currentColor"/><rect x="4" y="12" width="16" height="3" rx="0.5" fill="currentColor"/></svg>
+            </div>
+            <div class="login-page-mark">
+              <svg viewBox="0 0 24 32" width="22" height="29" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="10.5" y="1" width="3" height="30" rx="0.5" fill="currentColor"/>
+                <rect x="7" y="7" width="10" height="3" rx="0.5" fill="currentColor"/>
+                <rect x="4" y="12" width="16" height="3" rx="0.5" fill="currentColor"/>
+              </svg>
+            </div>
+            <h1>Mémoire de l'Ombre</h1>
+            <p class="login-page-tagline">La collection qui éclaire le passé</p>
           </div>
-          <div id="loginMsg" class="form-msg"></div>
+          <div class="login-page-form">
+            <h3>Connexion administrateur</h3>
+            <p class="login-page-sub">Accédez à la gestion complète de la collection.</p>
+            <div class="form-field"><label>Email</label><input type="email" id="loginEmail"></div>
+            <div class="form-field"><label>Mot de passe</label><input type="password" id="loginPassword"></div>
+            <div class="modal-actions login-page-actions">
+              <!-- #loginMsg regroupé avec #loginSubmitBtn dans .login-submit-row :
+                   les deux forment un seul bloc qui ne se met jamais à la ligne,
+                   et "Continuer en tant qu'invité" reste toujours en dessous, à
+                   une position fixe — voir new_style.css pour l'explication
+                   complète (l'ancienne version en flex-wrap simple faisait
+                   bouger les CTA selon la longueur du message). -->
+              <div class="login-submit-row">
+                <div id="loginMsg" class="form-msg"></div>
+                <button class="btn btn-primary" id="loginSubmitBtn">Se connecter</button>
+              </div>
+              <button class="btn btn-secondary" id="loginCancelBtn">Continuer en tant qu'invité</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="settingsModal" class="modal-overlay" style="display:none;">
+        <div class="modal-box settings-modal">
+          <h3>Paramètres</h3>
+          <div class="settings-row">
+            <div class="settings-row-label"><strong>Thème</strong><span>Interface claire ou sombre</span></div>
+            <button class="settings-switch" id="settingsThemeSwitch" type="button" role="switch" aria-label="Basculer le thème"><span class="knob"></span></button>
+          </div>
+          <div class="settings-row" id="settingsPrivacyRow">
+            <div class="settings-row-label"><strong>Confidentialité</strong><span>Masquer les infos privées</span></div>
+            <button class="settings-switch" id="settingsPrivacySwitch" type="button" role="switch" aria-label="Basculer la confidentialité"><span class="knob"></span></button>
+          </div>
+
+          <!-- Mot de passe admin : ligne repliée + mini-formulaire déroulé au clic,
+               les deux réservés à l'admin (même condition que Confidentialité). -->
+          <div class="settings-row" id="settingsPasswordRow">
+            <div class="settings-row-label"><strong>Mot de passe</strong><span>Modifier votre mot de passe administrateur</span></div>
+            <button class="btn btn-secondary" id="settingsPasswordToggleBtn" type="button">Modifier</button>
+          </div>
+          <div class="settings-password-form" id="settingsPasswordForm" style="display:none;">
+            <div class="form-field"><label>Nouveau mot de passe</label><input type="password" id="settingsNewPassword" autocomplete="new-password"></div>
+            <div class="form-field"><label>Confirmer le mot de passe</label><input type="password" id="settingsConfirmPassword" autocomplete="new-password"></div>
+            <div class="settings-password-actions">
+              <button class="btn btn-secondary" id="settingsPasswordCancelBtn" type="button">Annuler</button>
+              <button class="btn btn-primary" id="settingsPasswordSaveBtn" type="button">Enregistrer</button>
+            </div>
+            <div class="form-msg" id="settingsPasswordMsg"></div>
+          </div>
+
+          <!-- Export de la collection : CSV (sauvegarde des données) et
+               impression/PDF (via l'impression native du navigateur, sans
+               dépendance externe) — réservé à l'admin, comme ci-dessus. -->
+          <div class="settings-row" id="settingsExportRow">
+            <div class="settings-row-label"><strong>Export de la collection</strong><span>Sauvegarde CSV ou impression PDF</span></div>
+            <div class="settings-export-actions">
+              <button class="btn btn-secondary" id="settingsExportCsvBtn" type="button">CSV</button>
+              <button class="btn btn-secondary" id="settingsExportPdfBtn" type="button">PDF</button>
+            </div>
+          </div>
+
+          <div class="modal-actions">
+            <button class="btn btn-primary" id="settingsCloseBtn">Fermer</button>
+          </div>
         </div>
       </div>
 
@@ -971,6 +1232,23 @@
         <div id="catalogueSentinel" style="height:1px;"></div>
       </section>
 
+      <!-- Galerie : simple grille façon Instagram (tuiles carrées, taille
+           uniforme), une photo par objet (recto en priorité), ordre
+           randomisé à chaque ouverture de l'onglet ou clic sur "Mélanger".
+           Contenu généré par le script additif en bas de page (voir plus
+           bas) à partir de ALL_OBJETS / PHOTOS_BY_OBJET déjà chargés par le
+           script principal — aucune donnée ni requête dupliquée. -->
+      <section class="view" id="view-galerie">
+        <div class="gallery-header">
+          <h2>Galerie</h2>
+          <button class="btn btn-secondary" id="galerieShuffleBtn" type="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3h5v5"/><path d="M4 20 21 3"/><path d="M21 16v5h-5"/><path d="M15 15l6 6"/><path d="M4 4l5 5"/></svg>
+            <span class="btn-label">Mélanger</span>
+          </button>
+        </div>
+        <div class="ig-gallery" id="igGallery"></div>
+      </section>
+
       <section class="view" id="view-fiche">
         <button class="fiche-back" id="backBtn">← Retour au catalogue</button>
         <div id="ficheContent"></div>
@@ -995,6 +1273,11 @@
   <div id="lightboxCounter" class="lb-counter"></div>
   <div class="zoom-hint">Cliquer sur la photo pour voir en taille réelle</div>
 </div>
+
+<!-- Export PDF (Paramètres) : conteneur invisible à l'écran, rempli juste
+     avant window.print() et affiché uniquement en contexte d'impression
+     (voir la règle @media print) — aucune dépendance externe. -->
+<div id="printExportContainer" aria-hidden="true"></div>
 
 <script>
 // ============================================================
@@ -3660,6 +3943,316 @@ refreshAuthState().then(()=> loadAll()).then(()=> initFranceMap());
   syncMobileHeights();
   if(typeof ResizeObserver !== 'undefined') new ResizeObserver(syncMobileHeights).observe(fabPanel);
   window.addEventListener('resize', syncMobileHeights);
+})();
+
+// ============================================================
+// Porte d'entrée — la page de connexion (#loginModal) doit s'afficher EN
+// PREMIER, avant tout accès au contenu de l'application, aussi bien pour un
+// visiteur anonyme que pour un admin dont la session Supabase n'a pas encore
+// été vérifiée. Aucune logique de connexion n'est dupliquée :
+//  1. On affiche simplement la modale au chargement (displays flex) — un
+//     pur effet visuel, la logique de connexion elle-même est intacte.
+//     "Continuer en tant qu'invité" (ex-"Annuler") reste le bouton existant,
+//     seul son libellé change pour rester clair dans ce nouveau contexte.
+//  2. Si une session admin est déjà active (ex : F5 après connexion), la
+//     porte doit se refermer automatiquement sans redemander de mot de
+//     passe. Pour le savoir, on enrichit applyAuthUI() — déjà appelée par
+//     refreshAuthState() au chargement — d'un effet de bord, plutôt que de
+//     réécrire la détection de session : à l'exécution de ce script,
+//     refreshAuthState() a déjà été LANCÉE (ligne du script principal) mais
+//     sa continuation (await sb.auth.getSession() puis applyAuthUI()) ne
+//     s'exécute qu'après, en microtâche — remplacer window.applyAuthUI ici
+//     est donc bien pris en compte au moment où elle est appelée.
+// ============================================================
+(function(){
+  const loginModal = document.getElementById('loginModal');
+  const loginMsg = document.getElementById('loginMsg');
+  if(!loginModal) return;
+
+  loginModal.style.display = 'flex';
+  if(loginMsg) loginMsg.textContent = '';
+
+  if(typeof window.applyAuthUI === 'function'){
+    const originalApplyAuthUI = window.applyAuthUI;
+    window.applyAuthUI = function(){
+      originalApplyAuthUI();
+      if(typeof IS_ADMIN !== 'undefined' && IS_ADMIN && loginModal.style.display !== 'none'){
+        loginModal.style.display = 'none';
+      }
+    };
+  }
+})();
+
+// ============================================================
+// Pied de menu desktop — connexion/déconnexion + Paramètres.
+// Aucune logique métier dupliquée : #sidebarLoginBtn déclenche un clic réel
+// sur #loginBtn (mêmes règles que le bouton du topbar, mobile compris), et
+// de simples MutationObserver recopient son libellé/titre/statut. Idem pour
+// Paramètres : les switches ne font que déclencher #darkModeBtn et
+// #privacyToggleBtn puis refléter l'état résultant (classes body.dark /
+// body.privacy-on), sans jamais toucher à la logique existante.
+// ============================================================
+(function(){
+  const loginBtn = document.getElementById('loginBtn');
+  const loginBtnLabel = document.getElementById('loginBtnLabel');
+  const authStatus = document.getElementById('authStatus');
+  const sidebarLoginBtn = document.getElementById('sidebarLoginBtn');
+  const sidebarLoginBtnLabel = document.getElementById('sidebarLoginBtnLabel');
+  const sidebarAccountStatusText = document.getElementById('sidebarAccountStatusText');
+  const sidebarStatusDot = document.getElementById('sidebarStatusDot');
+  if(loginBtn && sidebarLoginBtn){
+    sidebarLoginBtn.addEventListener('click', ()=> loginBtn.click());
+    function syncLoginState(){
+      // On lit IS_ADMIN directement (variable globale du script principal)
+      // plutôt que de reparser le texte de #authStatus ("● Admin"/"○ Invité") :
+      // plus robuste, et ça permet une vraie pastille colorée (impossible à
+      // obtenir en ne recopiant que le texte, où le point n'est qu'un
+      // caractère parmi d'autres dans la même chaîne).
+      const admin = typeof IS_ADMIN !== 'undefined' && IS_ADMIN;
+      if(sidebarLoginBtnLabel && loginBtnLabel) sidebarLoginBtnLabel.textContent = loginBtnLabel.textContent;
+      sidebarLoginBtn.title = loginBtn.title;
+      if(sidebarAccountStatusText) sidebarAccountStatusText.textContent = admin ? 'Admin' : 'Invité';
+      if(sidebarStatusDot) sidebarStatusDot.classList.toggle('online', admin);
+    }
+    syncLoginState();
+    if(loginBtnLabel) new MutationObserver(syncLoginState).observe(loginBtnLabel, { childList:true, characterData:true, subtree:true });
+    new MutationObserver(syncLoginState).observe(loginBtn, { attributes:true, attributeFilter:['title'] });
+    if(authStatus) new MutationObserver(syncLoginState).observe(authStatus, { childList:true, characterData:true, subtree:true });
+  }
+
+  const settingsBtn = document.getElementById('sidebarSettingsBtn');
+  const settingsModal = document.getElementById('settingsModal');
+  const darkModeBtn = document.getElementById('darkModeBtn');
+  const privacyToggleBtn = document.getElementById('privacyToggleBtn');
+  const themeSwitch = document.getElementById('settingsThemeSwitch');
+  const privacySwitch = document.getElementById('settingsPrivacySwitch');
+  const privacyRow = document.getElementById('settingsPrivacyRow');
+  const settingsCloseBtn = document.getElementById('settingsCloseBtn');
+
+  // Mot de passe admin : ligne repliée <-> mini-formulaire, jamais les deux
+  // à la fois. sb.auth.updateUser() agit sur la session déjà connectée —
+  // aucune clé ni permission supplémentaire, c'est l'API Supabase standard.
+  const passwordRow = document.getElementById('settingsPasswordRow');
+  const passwordForm = document.getElementById('settingsPasswordForm');
+  const passwordToggleBtn = document.getElementById('settingsPasswordToggleBtn');
+  const passwordCancelBtn = document.getElementById('settingsPasswordCancelBtn');
+  const passwordSaveBtn = document.getElementById('settingsPasswordSaveBtn');
+  const newPasswordInput = document.getElementById('settingsNewPassword');
+  const confirmPasswordInput = document.getElementById('settingsConfirmPassword');
+  const passwordMsg = document.getElementById('settingsPasswordMsg');
+
+  // Export de la collection : CSV natif (Blob + téléchargement) et PDF via
+  // l'impression native du navigateur — aucune bibliothèque tierce.
+  const exportRow = document.getElementById('settingsExportRow');
+  const exportCsvBtn = document.getElementById('settingsExportCsvBtn');
+  const exportPdfBtn = document.getElementById('settingsExportPdfBtn');
+  const printContainer = document.getElementById('printExportContainer');
+
+  if(settingsBtn && settingsModal){
+    // Ne touche QUE le mini-formulaire (le masque, vide les champs) — jamais
+    // à la visibilité de #settingsPasswordRow, gérée uniquement par
+    // syncSwitches() selon le statut admin, pour ne jamais réafficher la
+    // ligne par erreur chez un invité.
+    function collapsePasswordForm(){
+      if(!passwordForm) return;
+      passwordForm.style.display = 'none';
+      if(newPasswordInput) newPasswordInput.value = '';
+      if(confirmPasswordInput) confirmPasswordInput.value = '';
+      if(passwordMsg) passwordMsg.textContent = '';
+    }
+    function syncSwitches(){
+      themeSwitch.classList.toggle('on', document.body.classList.contains('dark'));
+      // Confidentialité, Mot de passe et Export sont des fonctions admin :
+      // même condition que le reste de l'appli (visibilité du vrai bouton
+      // #privacyToggleBtn, géré par applyAuthUI() selon IS_ADMIN).
+      const adminVisible = !!(privacyToggleBtn && privacyToggleBtn.style.display !== 'none');
+      privacyRow.style.display = adminVisible ? 'flex' : 'none';
+      if(adminVisible) privacySwitch.classList.toggle('on', document.body.classList.contains('privacy-on'));
+      if(passwordRow) passwordRow.style.display = adminVisible ? 'flex' : 'none';
+      if(exportRow) exportRow.style.display = adminVisible ? 'flex' : 'none';
+      collapsePasswordForm();
+    }
+    function closeSettings(){ settingsModal.style.display = 'none'; }
+    settingsBtn.addEventListener('click', ()=>{ syncSwitches(); settingsModal.style.display = 'flex'; });
+    themeSwitch.addEventListener('click', ()=>{ darkModeBtn.click(); syncSwitches(); });
+    privacySwitch.addEventListener('click', ()=>{ privacyToggleBtn.click(); syncSwitches(); });
+    settingsCloseBtn.addEventListener('click', closeSettings);
+    settingsModal.addEventListener('click', e=>{ if(e.target === settingsModal) closeSettings(); });
+    document.addEventListener('keydown', e=>{ if(e.key === 'Escape' && settingsModal.style.display === 'flex') closeSettings(); });
+
+    if(passwordToggleBtn && passwordForm && passwordRow){
+      passwordToggleBtn.addEventListener('click', ()=>{
+        passwordRow.style.display = 'none';
+        passwordForm.style.display = 'flex';
+        newPasswordInput.focus();
+      });
+      // Revenir à la ligne repliée (elle est forcément déjà censée être
+      // visible ici : on ne peut ouvrir ce formulaire que depuis cette ligne,
+      // donc admin confirmé) après annulation ou succès de l'enregistrement.
+      function backToPasswordRow(){
+        collapsePasswordForm();
+        passwordRow.style.display = 'flex';
+      }
+      passwordCancelBtn.addEventListener('click', backToPasswordRow);
+      passwordSaveBtn.addEventListener('click', async ()=>{
+        const pw1 = newPasswordInput.value;
+        const pw2 = confirmPasswordInput.value;
+        if(pw1.length < 6){ passwordMsg.textContent = 'Le mot de passe doit contenir au moins 6 caractères.'; return; }
+        if(pw1 !== pw2){ passwordMsg.textContent = 'Les mots de passe ne correspondent pas.'; return; }
+        passwordMsg.textContent = 'Mise à jour…';
+        passwordSaveBtn.disabled = true;
+        try{
+          const { error } = await sb.auth.updateUser({ password: pw1 });
+          if(error){ passwordMsg.textContent = 'Erreur : ' + error.message; return; }
+          passwordMsg.textContent = 'Mot de passe mis à jour.';
+          setTimeout(backToPasswordRow, 1200);
+        }catch(err){
+          passwordMsg.textContent = 'Erreur : ' + (err.message || err);
+        }finally{
+          passwordSaveBtn.disabled = false;
+        }
+      });
+    }
+
+    // Colonnes exportées : exactement les champs gérés par le formulaire
+    // d'objet (cf. saveObjet()) + id_public et created_at, pour une
+    // sauvegarde complète et fidèle aux données réellement saisies.
+    const EXPORT_COLS = ['id_public','titre','type_objet','region','departement','mouvement','fabricant',
+      'type_tirage','quantite_tirage','detail_tirage','date_fabrication','indice_rarete','etat_conservation',
+      'type_variante','authenticite','reference_catalogue','prix_achat','valeur_estimee_actuelle','date_estimation',
+      'provenance','date_acquisition','emplacement_physique','visibilite','notes','infos','details','taille','created_at'];
+
+    function currentObjets(){
+      return (typeof ALL_OBJETS !== 'undefined' && Array.isArray(ALL_OBJETS)) ? ALL_OBJETS : [];
+    }
+
+    function downloadBlob(blob, filename){
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(()=> URL.revokeObjectURL(url), 2000);
+    }
+
+    if(exportCsvBtn){
+      exportCsvBtn.addEventListener('click', ()=>{
+        function csvCell(v){
+          if(v === null || v === undefined) return '';
+          const s = String(v);
+          // Séparateur ";" (convention FR/Excel) : toute cellule contenant
+          // ";", un guillemet ou un retour à la ligne doit être échappée.
+          return /[";\n]/.test(s) ? '"' + s.replace(/"/g,'""') + '"' : s;
+        }
+        const rows = [EXPORT_COLS.join(';')];
+        currentObjets().forEach(o=> rows.push(EXPORT_COLS.map(c=> csvCell(o[c])).join(';')));
+        // BOM UTF-8 en tête : sans lui, Excel affiche mal les accents.
+        const csv = '﻿' + rows.join('\r\n');
+        const date = new Date().toISOString().slice(0,10);
+        downloadBlob(new Blob([csv], { type:'text/csv;charset=utf-8;' }), `collection-ffi-${date}.csv`);
+      });
+    }
+
+    if(exportPdfBtn && printContainer){
+      const PRINT_COLS = [
+        ['id_public','Réf.'], ['titre','Titre'], ['type_objet','Type'], ['region','Région'],
+        ['departement','Département'], ['indice_rarete','Rareté'], ['etat_conservation','État'],
+        ['authenticite','Authenticité'], ['prix_achat',"Prix d'achat"], ['valeur_estimee_actuelle','Valeur estimée'],
+        ['provenance','Provenance'], ['date_acquisition','Acquis le'],
+      ];
+      exportPdfBtn.addEventListener('click', ()=>{
+        const objs = currentObjets();
+        const head = PRINT_COLS.map(([,label])=> `<th>${esc(label)}</th>`).join('');
+        const rows = objs.map(o => '<tr>' + PRINT_COLS.map(([key])=> `<td>${esc(o[key] ?? '')}</td>`).join('') + '</tr>').join('');
+        printContainer.innerHTML = `
+          <h1>Mémoire de l'Ombre — Export de la collection</h1>
+          <div class="print-meta">${objs.length} objet(s) · généré le ${new Date().toLocaleDateString('fr-FR')}</div>
+          <table><thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table>
+        `;
+        window.print();
+      });
+    }
+  }
+})();
+
+// ============================================================
+// Galerie — grille aléatoire des objets (une photo par objet, recto en
+// priorité), inspirée de la grille de profil Instagram (tuiles carrées,
+// même taille, pas d'effet bento). Réutilise entièrement les données et
+// fonctions déjà chargées par le script principal (ALL_OBJETS,
+// PHOTOS_BY_OBJET, scalewayPublicUrl, cachedImgTag, hydrateCachedImages,
+// esc, openLightboxFor) — aucune requête ni logique dupliquée. L'onglet
+// "Galerie" (data-view="galerie") est traité de façon 100% générique par le
+// gestionnaire de clic existant sur #tabs et par switchView(), donc rien à
+// modifier de ce côté : ce script se contente d'observer quand la vue
+// devient active pour (re)générer son contenu à ce moment-là.
+// ============================================================
+(function(){
+  const galleryView = document.getElementById('view-galerie');
+  const galleryGrid = document.getElementById('igGallery');
+  const shuffleBtn = document.getElementById('galerieShuffleBtn');
+  if(!galleryView || !galleryGrid) return;
+
+  // Mélange Fisher-Yates in place.
+  function shuffle(arr){
+    for(let i = arr.length - 1; i > 0; i--){
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  }
+
+  // Une entrée par objet possédant au moins une photo (recto en priorité,
+  // sinon la première disponible) — jamais deux tuiles pour le même objet,
+  // et les objets sans aucune photo n'apparaissent pas dans la galerie.
+  function buildEntries(){
+    const objets = (typeof ALL_OBJETS !== 'undefined' && Array.isArray(ALL_OBJETS)) ? ALL_OBJETS : [];
+    const entries = [];
+    objets.forEach(o=>{
+      const shots = (typeof PHOTOS_BY_OBJET !== 'undefined' && PHOTOS_BY_OBJET[o.uid]) || [];
+      if(!shots.length) return;
+      const main = shots.find(p => p.label === 'Recto') || shots[0];
+      entries.push({ uid: o.uid, photoId: main.id, titre: o.titre, url: scalewayPublicUrl(main.storage_path) });
+    });
+    return entries;
+  }
+
+  function render(){
+    const entries = shuffle(buildEntries());
+    if(!entries.length){
+      galleryGrid.innerHTML = '<div class="ig-empty">Aucune photo à afficher pour le moment.</div>';
+      return;
+    }
+    galleryGrid.innerHTML = entries.map(e => `
+      <div class="ig-tile" data-uid="${e.uid}" data-photo-id="${e.photoId}">
+        ${cachedImgTag(e.url, `alt="${esc(e.titre)}"`)}
+        <div class="ig-tile-caption">${esc(e.titre)}</div>
+      </div>
+    `).join('');
+    hydrateCachedImages(galleryGrid);
+  }
+
+  // Clic sur une tuile -> lightbox plein écran de l'objet (même visionneuse
+  // que sur la fiche, avec navigation entre toutes ses photos).
+  galleryGrid.addEventListener('click', e=>{
+    const tile = e.target.closest('.ig-tile');
+    if(!tile) return;
+    openLightboxFor(tile.dataset.uid, tile.dataset.photoId);
+  });
+
+  if(shuffleBtn) shuffleBtn.addEventListener('click', render);
+
+  // (Re)génère la mosaïque à chaque fois que l'onglet devient actif (jamais
+  // au chargement de la page tant qu'on ne l'a pas ouvert) : observé plutôt
+  // que déclenché depuis switchView(), pour ne toucher à aucun code existant.
+  let wasActive = false;
+  new MutationObserver(()=>{
+    const isActive = galleryView.classList.contains('active');
+    if(isActive && !wasActive) render();
+    wasActive = isActive;
+  }).observe(galleryView, { attributes:true, attributeFilter:['class'] });
 })();
 </script>
 </body>
