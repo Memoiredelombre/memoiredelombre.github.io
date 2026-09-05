@@ -133,6 +133,11 @@
     body.sidebar-hidden nav.tabs button.nav-item.active{background:linear-gradient(155deg, var(--accent), color-mix(in srgb, var(--accent) 78%, #fff 0%) 40%, color-mix(in srgb, var(--accent) 70%, black)); border-color:transparent; color:var(--accent-ink); box-shadow:var(--glow);}
   }
 
+  /* Brand du header mobile : invisible par défaut (desktop), la sidebar a
+     déjà son propre logo — réactivé uniquement ≤900px ci-dessous. Doit être
+     défini AVANT la media query pour que celle-ci l'emporte à l'affichage. */
+  .topbar-brand{display:none;}
+
   /* ---------- Mobile (≤900px, seuil utilisé aussi par le JS de la sidebar) :
      la sidebar devient un dock flottant fixé en bas de l'écran (icônes +
      libellés courts), plus de tiroir latéral ni de rideau à ouvrir/fermer —
@@ -154,8 +159,25 @@
     /* Espace net entre le bandeau dépoli (sticky) et le corps de page — avant
        il n'y avait aucun padding-top, tout venait se coller sous le header. */
     .content{padding:18px 16px 104px;}
+
+    /* ---------- Vrai header mobile ----------
+       3 rangées nettes dans le bandeau sticky existant (aucun nouveau conteneur
+       hors de .topbar) : identité (logo + titre de la page courante, mis à jour
+       par un petit script additif qui recopie le libellé de l'onglet actif),
+       puis les actions, puis la recherche — chacune forcée en pleine largeur
+       via flex-basis:100% pour ne plus jamais se retrouver comprimées/collées
+       comme avant. .topbar-spacer (pur artifice desktop) n'a plus d'utilité ici. */
+    .topbar-spacer{display:none;}
+    .topbar-brand{display:flex; order:1; flex:1 1 100%; align-items:center; gap:11px; min-width:0;}
+    .topbar-brand .mark{width:34px; height:34px; border-radius:10px; background:linear-gradient(155deg, var(--accent), var(--accent) 55%, color-mix(in srgb, var(--accent) 65%, black)); flex:none; display:flex; align-items:center; justify-content:center; color:var(--accent-ink); box-shadow:var(--shadow), var(--glow);}
+    .topbar-brand .mark svg{width:16px; height:21px;}
+    .topbar-brand .titles{display:flex; flex-direction:column; min-width:0; line-height:1.2;}
+    .topbar-brand .app-name{font-size:10px; font-weight:600; letter-spacing:.05em; text-transform:uppercase; color:var(--ink-faint); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+    .topbar-brand .page-title{font-size:16.5px; font-weight:700; color:var(--ink); font-family:'Newsreader',serif; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+    .header-actions{order:2; flex:1 1 100%; justify-content:flex-end;}
+    .topbar-search-wrap{order:3;}
   }
-  @media(max-width:600px){.content{padding:16px 14px 96px;} .topbar{padding:12px 16px;}}
+  @media(max-width:600px){.content{padding:16px 14px 96px;} .topbar{padding:12px 16px;} .topbar-brand .page-title{font-size:15.5px;}}
 
   /* ---------- Brand ---------- */
   .brand-block{display:flex; align-items:center; gap:11px;}
@@ -667,6 +689,19 @@
 
   <div class="main">
     <header class="topbar">
+      <div class="topbar-brand">
+        <div class="mark">
+          <svg viewBox="0 0 24 32" width="15" height="20" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="10.5" y="1" width="3" height="30" rx="0.5" fill="currentColor"/>
+            <rect x="7" y="7" width="10" height="3" rx="0.5" fill="currentColor"/>
+            <rect x="4" y="12" width="16" height="3" rx="0.5" fill="currentColor"/>
+          </svg>
+        </div>
+        <div class="titles">
+          <span class="app-name">Mémoire de l'Ombre</span>
+          <span class="page-title" id="topbarPageTitle">Tableau de bord</span>
+        </div>
+      </div>
       <button class="btn btn-secondary menu-toggle-btn" id="sidebarToggleBtn" type="button" title="Afficher/masquer le menu" aria-label="Afficher/masquer le menu">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
       </button>
@@ -2506,12 +2541,12 @@ function openForm(mode, objet){
       <div class="form-section locked">
         <h4>🔒 Informations privées</h4>
         <div class="form-grid">
+          ${fieldHtml('provenance','Provenance','text',o.provenance)}
+          ${fieldHtml('date_acquisition',"Date d'acquisition",'date',o.date_acquisition)}
           ${fieldHtml('reference_catalogue','Référence catalogue','text',o.reference_catalogue)}
           ${fieldHtml('prix_achat',"Prix d'achat (€)",'number',o.prix_achat)}
           ${fieldHtml('valeur_estimee_actuelle','Valeur estimée actuelle (€)','number',o.valeur_estimee_actuelle)}
           ${fieldHtml('date_estimation','Date estimation','date',o.date_estimation)}
-          ${fieldHtml('provenance','Provenance','text',o.provenance)}
-          ${fieldHtml('date_acquisition',"Date d'acquisition",'date',o.date_acquisition)}
         </div>
       </div>
 
@@ -3617,6 +3652,26 @@ refreshAuthState().then(()=> loadAll()).then(()=> initFranceMap());
   syncMobileHeights();
   if(typeof ResizeObserver !== 'undefined') new ResizeObserver(syncMobileHeights).observe(fabPanel);
   window.addEventListener('resize', syncMobileHeights);
+})();
+
+// ============================================================
+// Header mobile — le titre affiché à côté du logo (#topbarPageTitle)
+// recopie simplement le libellé de l'onglet actif de la nav (nav.tabs
+// button.active .label-text), sans dupliquer la logique de switchView().
+// Un MutationObserver sur les classes des boutons de la nav suffit à
+// rester synchronisé quel que soit le chemin emprunté pour changer de
+// vue (clic d'onglet, retour arrière, ouverture d'une fiche...).
+// ============================================================
+(function(){
+  const titleEl = document.getElementById('topbarPageTitle');
+  const tabsNav = document.getElementById('tabs');
+  if(!titleEl || !tabsNav) return;
+  function syncTitle(){
+    const active = tabsNav.querySelector('button.nav-item.active .label-text');
+    if(active) titleEl.textContent = active.textContent;
+  }
+  syncTitle();
+  new MutationObserver(syncTitle).observe(tabsNav, { attributes:true, attributeFilter:['class'], subtree:true });
 })();
 </script>
 </body>
