@@ -171,20 +171,28 @@
     .topbar-brand{display:flex; order:1; flex:1 1 100%; align-items:center; gap:11px; min-width:0;}
     .topbar-brand .mark{width:34px; height:34px; border-radius:10px; background:linear-gradient(155deg, var(--accent), var(--accent) 55%, color-mix(in srgb, var(--accent) 65%, black)); flex:none; display:flex; align-items:center; justify-content:center; color:var(--accent-ink); box-shadow:var(--shadow), var(--glow);}
     .topbar-brand .mark svg{width:16px; height:21px;}
-    .topbar-brand .titles{display:flex; flex-direction:column; min-width:0; line-height:1.2;}
-    .topbar-brand .app-name{font-size:10px; font-weight:600; letter-spacing:.05em; text-transform:uppercase; color:var(--ink-faint); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-    .topbar-brand .page-title{font-size:16.5px; font-weight:700; color:var(--ink); font-family:'Newsreader',serif; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+    /* Même hiérarchie typographique que le brand-block de la sidebar desktop
+       (h1 + .sub) : nom de l'appli en avant, accroche en dessous, chacun
+       borné à 1 ligne (ellipsis) pour ne jamais dépasser 2 lignes au total. */
+    .topbar-brand .titles{display:flex; flex-direction:column; min-width:0; line-height:1.25;}
+    .topbar-brand .app-name{font-size:15px; font-weight:700; letter-spacing:-.01em; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+    .topbar-brand .tagline{font-size:10.5px; color:var(--ink-soft); margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
     .header-actions{order:2; flex:1 1 100%; justify-content:flex-end;}
     .topbar-search-wrap{order:3;}
   }
-  @media(max-width:600px){.content{padding:16px 14px 96px;} .topbar{padding:12px 16px;} .topbar-brand .page-title{font-size:15.5px;}}
+  @media(max-width:600px){.content{padding:16px 14px 96px;} .topbar{padding:12px 16px;} .topbar-brand .app-name{font-size:14px;}}
 
   /* ---------- Brand ---------- */
   .brand-block{display:flex; align-items:center; gap:11px;}
   .brand-block .mark{width:44px; height:44px; border-radius:13px; background:linear-gradient(155deg, var(--accent), var(--accent) 55%, color-mix(in srgb, var(--accent) 65%, black)); flex:none; display:flex; align-items:center; justify-content:center; color:var(--accent-ink); box-shadow:var(--shadow), var(--glow);}
   .brand-block .mark svg{width:20px; height:26px;}
-  .brand-block h1{font-size:15px; font-weight:700; margin:0; letter-spacing:-.01em;}
-  .brand-block .sub{font-size:11px; color:var(--ink-soft); margin-top:1px; max-width:170px; line-height:1.3;}
+  /* brand-text doit pouvoir rétrécir sous sa largeur de contenu (min-width:0)
+     pour que l'ellipsis ci-dessous fonctionne réellement dans la sidebar. */
+  .brand-block .brand-text{min-width:0;}
+  /* Titre + sous-titre bornés chacun à 1 ligne (ellipsis si jamais trop long) :
+     2 lignes maximum au total, quelle que soit la police/largeur réelle. */
+  .brand-block h1{font-size:15px; font-weight:700; margin:0; letter-spacing:-.01em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .brand-block .sub{font-size:11px; color:var(--ink-soft); margin-top:1px; max-width:178px; line-height:1.3; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
 
   /* ---------- Sidebar nav (nav.tabs est requis par le JS : nav.tabs button[...]) ---------- */
   nav.tabs{display:flex; flex-direction:column; gap:4px;}
@@ -699,7 +707,7 @@
         </div>
         <div class="titles">
           <span class="app-name">Mémoire de l'Ombre</span>
-          <span class="page-title" id="topbarPageTitle">Tableau de bord</span>
+          <span class="tagline">La collection qui éclaire le passé</span>
         </div>
       </div>
       <button class="btn btn-secondary menu-toggle-btn" id="sidebarToggleBtn" type="button" title="Afficher/masquer le menu" aria-label="Afficher/masquer le menu">
@@ -3652,26 +3660,6 @@ refreshAuthState().then(()=> loadAll()).then(()=> initFranceMap());
   syncMobileHeights();
   if(typeof ResizeObserver !== 'undefined') new ResizeObserver(syncMobileHeights).observe(fabPanel);
   window.addEventListener('resize', syncMobileHeights);
-})();
-
-// ============================================================
-// Header mobile — le titre affiché à côté du logo (#topbarPageTitle)
-// recopie simplement le libellé de l'onglet actif de la nav (nav.tabs
-// button.active .label-text), sans dupliquer la logique de switchView().
-// Un MutationObserver sur les classes des boutons de la nav suffit à
-// rester synchronisé quel que soit le chemin emprunté pour changer de
-// vue (clic d'onglet, retour arrière, ouverture d'une fiche...).
-// ============================================================
-(function(){
-  const titleEl = document.getElementById('topbarPageTitle');
-  const tabsNav = document.getElementById('tabs');
-  if(!titleEl || !tabsNav) return;
-  function syncTitle(){
-    const active = tabsNav.querySelector('button.nav-item.active .label-text');
-    if(active) titleEl.textContent = active.textContent;
-  }
-  syncTitle();
-  new MutationObserver(syncTitle).observe(tabsNav, { attributes:true, attributeFilter:['class'], subtree:true });
 })();
 </script>
 </body>
