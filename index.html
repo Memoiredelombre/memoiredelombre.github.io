@@ -247,8 +247,17 @@
      pour un pied de menu) mais disparaît en desktop, remplacé par le bloc
      ci-dessous en pied de sidebar. Aucune logique dupliquée : #sidebarLoginBtn
      déclenche un clic réel sur #loginBtn (mêmes règles métier), et un
-     MutationObserver recopie simplement son libellé/titre. */
-  @media(min-width:901px){#loginBtn{display:none;}}
+     MutationObserver recopie simplement son libellé/titre.
+     #mobileSettingsBtn est le pendant pour "Paramètres" : le dock mobile ne
+     contient QUE la navigation entre onglets (pas de place pour un pied de
+     menu), donc ce bouton vit dans le topbar, visible uniquement ≤900px
+     (en desktop, Paramètres reste dans le pied de sidebar ci-dessous). */
+  /* #mobileSettingsBtn ciblé par ID (pas juste .mobile-settings-btn) : la
+     règle générique .btn{display:inline-flex;...} arrive plus loin dans la
+     feuille de styles et, à spécificité de classe égale, gagnerait sinon
+     par ordre de source malgré la media query — même piège que rencontré
+     précédemment sur .topbar-brand. */
+  @media(min-width:901px){#loginBtn{display:none;} #mobileSettingsBtn{display:none;}}
   .sidebar-footer{display:flex; flex-direction:column; gap:3px; padding-top:14px; margin-top:2px; border-top:1px solid var(--border);}
   .sidebar-footer-btn{display:flex; align-items:center; gap:10px; width:100%; background:none; border:1px solid transparent; cursor:pointer; text-align:left; font-size:13px; font-weight:500; font-family:'Space Grotesk',sans-serif; color:var(--ink-soft); padding:10px 12px; border-radius:var(--r-sm); transition:background .15s ease, color .15s ease;}
   .sidebar-footer-btn .ico{width:16px; height:16px; flex:none; display:flex; align-items:center; justify-content:center; opacity:.75;}
@@ -911,6 +920,13 @@
       <div class="topbar-spacer"></div>
       <div class="header-actions">
         <span id="authStatus" class="auth-status"></span>
+        <!-- Paramètres en mobile : sur desktop, ce CTA vit en pied de sidebar
+             (#sidebarSettingsBtn), mais cette sidebar devient un dock du bas
+             réservé à la navigation entre onglets sur mobile (≤900px), donc
+             "Paramètres" n'y a plus sa place. Ce bouton (masqué en desktop)
+             déclenche un clic réel sur #sidebarSettingsBtn — aucune logique
+             dupliquée, même modale Paramètres qu'en desktop. -->
+        <button class="btn btn-secondary icon-btn mobile-settings-btn" id="mobileSettingsBtn" type="button" title="Paramètres"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M12 3v2.4M12 18.6V21M21 12h-2.4M5.4 12H3M18.4 5.6l-1.7 1.7M7.3 16.7l-1.7 1.7M18.4 18.4l-1.7-1.7M7.3 7.3 5.6 5.6"/></svg></button>
         <button class="btn btn-secondary" id="loginBtn" title="Connexion administrateur"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="15" r="4"/><path d="M11 12 20 3M17 6l2 2M14 9l2 2"/></svg> <span id="loginBtnLabel">Connexion</span></button>
         <button class="btn btn-secondary icon-btn" id="darkModeBtn" title="Mode clair">☀️</button>
         <button class="btn btn-secondary icon-btn" id="privacyToggleBtn" title="Masquer les infos privées" style="display:none;">🔒</button>
@@ -4074,6 +4090,11 @@ refreshAuthState().then(()=> loadAll()).then(()=> initFranceMap());
     }
     function closeSettings(){ settingsModal.style.display = 'none'; }
     settingsBtn.addEventListener('click', ()=>{ syncSwitches(); settingsModal.style.display = 'flex'; });
+    // #mobileSettingsBtn (topbar, visible ≤900px) déclenche un clic réel sur
+    // #sidebarSettingsBtn — même wrap-and-proxy que #sidebarLoginBtn/#loginBtn,
+    // aucune logique dupliquée.
+    const mobileSettingsBtn = document.getElementById('mobileSettingsBtn');
+    if(mobileSettingsBtn) mobileSettingsBtn.addEventListener('click', ()=> settingsBtn.click());
     themeSwitch.addEventListener('click', ()=>{ darkModeBtn.click(); syncSwitches(); });
     privacySwitch.addEventListener('click', ()=>{ privacyToggleBtn.click(); syncSwitches(); });
     settingsCloseBtn.addEventListener('click', closeSettings);
@@ -4180,13 +4201,16 @@ refreshAuthState().then(()=> loadAll()).then(()=> initFranceMap());
 // ============================================================
 // Galerie — grille aléatoire des objets (une photo par objet, recto en
 // priorité), inspirée de la grille de profil Instagram (tuiles carrées,
-// même taille, pas d'effet bento). Réutilise entièrement les données et
-// fonctions déjà chargées par le script principal (ALL_OBJETS,
-// PHOTOS_BY_OBJET, scalewayPublicUrl, cachedImgTag, hydrateCachedImages,
-// esc, openLightboxFor) — aucune requête ni logique dupliquée. L'onglet
-// "Galerie" (data-view="galerie") est traité de façon 100% générique par le
-// gestionnaire de clic existant sur #tabs et par switchView(), donc rien à
-// modifier de ce côté : ce script se contente d'observer quand la vue
+// même taille, pas d'effet bento). Un clic sur une tuile ouvre la FICHE
+// complète de l'objet (via openFiche, la même navigation que depuis le
+// catalogue) — pas seulement un agrandissement de la photo. Réutilise
+// entièrement les données et fonctions déjà chargées par le script
+// principal (ALL_OBJETS, PHOTOS_BY_OBJET, scalewayPublicUrl, cachedImgTag,
+// hydrateCachedImages, esc, openFiche) — aucune requête ni logique
+// dupliquée. L'onglet "Galerie" (data-view="galerie") est traité de façon
+// 100% générique par le gestionnaire de clic existant sur #tabs et par
+// switchView(), donc rien à modifier de ce côté : ce script se contente
+// d'observer quand la vue
 // devient active pour (re)générer son contenu à ce moment-là.
 // ============================================================
 (function(){
@@ -4234,12 +4258,12 @@ refreshAuthState().then(()=> loadAll()).then(()=> initFranceMap());
     hydrateCachedImages(galleryGrid);
   }
 
-  // Clic sur une tuile -> lightbox plein écran de l'objet (même visionneuse
-  // que sur la fiche, avec navigation entre toutes ses photos).
+  // Clic sur une tuile -> fiche complète de l'objet (même navigation que
+  // depuis le catalogue), pas seulement un agrandissement de la photo.
   galleryGrid.addEventListener('click', e=>{
     const tile = e.target.closest('.ig-tile');
     if(!tile) return;
-    openLightboxFor(tile.dataset.uid, tile.dataset.photoId);
+    openFiche(tile.dataset.uid);
   });
 
   if(shuffleBtn) shuffleBtn.addEventListener('click', render);
