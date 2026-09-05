@@ -258,6 +258,11 @@
      par ordre de source malgré la media query — même piège que rencontré
      précédemment sur .topbar-brand. */
   @media(min-width:901px){#loginBtn{display:none;} #mobileSettingsBtn{display:none;}}
+  /* Pastille de statut posée sur l'icône #loginBtn en mobile (voir commentaire
+     HTML) — même déclinaison de .status-dot que le pied de sidebar desktop,
+     juste repositionnée en surimpression sur un bouton icône 40×40. */
+  #loginBtn{position:relative;}
+  .mobile-login-dot{position:absolute; top:5px; right:5px; width:7px; height:7px;}
   .sidebar-footer{display:flex; flex-direction:column; gap:3px; padding-top:14px; margin-top:2px; border-top:1px solid var(--border);}
   .sidebar-footer-btn{display:flex; align-items:center; gap:10px; width:100%; background:none; border:1px solid transparent; cursor:pointer; text-align:left; font-size:13px; font-weight:500; font-family:'Space Grotesk',sans-serif; color:var(--ink-soft); padding:10px 12px; border-radius:var(--r-sm); transition:background .15s ease, color .15s ease;}
   .sidebar-footer-btn .ico{width:16px; height:16px; flex:none; display:flex; align-items:center; justify-content:center; opacity:.75;}
@@ -877,7 +882,10 @@
 
     <div class="sidebar-footer">
       <button class="sidebar-footer-btn" id="sidebarSettingsBtn" type="button">
-        <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M12 3v2.4M12 18.6V21M21 12h-2.4M5.4 12H3M18.4 5.6l-1.7 1.7M7.3 16.7l-1.7 1.7M18.4 18.4l-1.7-1.7M7.3 7.3 5.6 5.6"/></svg></span>
+        <!-- Roue crantée classique (icône Feather "settings") plutôt qu'un
+             cercle + rayons, trop proche visuellement de l'icône "mode
+             clair" (☀️) du bouton juste à côté dans le topbar mobile. -->
+        <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span>
         <span class="label-text">Paramètres</span>
       </button>
       <button class="sidebar-footer-btn account" id="sidebarLoginBtn" type="button" title="Connexion administrateur">
@@ -926,8 +934,13 @@
              "Paramètres" n'y a plus sa place. Ce bouton (masqué en desktop)
              déclenche un clic réel sur #sidebarSettingsBtn — aucune logique
              dupliquée, même modale Paramètres qu'en desktop. -->
-        <button class="btn btn-secondary icon-btn mobile-settings-btn" id="mobileSettingsBtn" type="button" title="Paramètres"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M12 3v2.4M12 18.6V21M21 12h-2.4M5.4 12H3M18.4 5.6l-1.7 1.7M7.3 16.7l-1.7 1.7M18.4 18.4l-1.7-1.7M7.3 7.3 5.6 5.6"/></svg></button>
-        <button class="btn btn-secondary" id="loginBtn" title="Connexion administrateur"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="15" r="4"/><path d="M11 12 20 3M17 6l2 2M14 9l2 2"/></svg> <span id="loginBtnLabel">Connexion</span></button>
+        <button class="btn btn-secondary icon-btn mobile-settings-btn" id="mobileSettingsBtn" type="button" title="Paramètres"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
+        <!-- #mobileLoginDot : sur mobile, #loginBtn devient une icône seule
+             (libellé masqué) et rien ne distinguait visuellement l'état
+             connecté/invité — cette pastille reprend le même code couleur
+             que celle du pied de sidebar desktop (grise = invité, verte =
+             admin), posée en surimpression sur l'icône. -->
+        <button class="btn btn-secondary" id="loginBtn" title="Connexion administrateur"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="15" r="4"/><path d="M11 12 20 3M17 6l2 2M14 9l2 2"/></svg> <span id="loginBtnLabel">Connexion</span><span class="status-dot mobile-login-dot" id="mobileLoginDot"></span></button>
         <button class="btn btn-secondary icon-btn" id="darkModeBtn" title="Mode clair">☀️</button>
         <button class="btn btn-secondary icon-btn" id="privacyToggleBtn" title="Masquer les infos privées" style="display:none;">🔒</button>
         <button class="btn btn-primary" id="newObjetBtn" style="display:none;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg> <span class="btn-label">Nouvel objet</span></button>
@@ -4016,6 +4029,7 @@ refreshAuthState().then(()=> loadAll()).then(()=> initFranceMap());
   const sidebarLoginBtnLabel = document.getElementById('sidebarLoginBtnLabel');
   const sidebarAccountStatusText = document.getElementById('sidebarAccountStatusText');
   const sidebarStatusDot = document.getElementById('sidebarStatusDot');
+  const mobileLoginDot = document.getElementById('mobileLoginDot');
   if(loginBtn && sidebarLoginBtn){
     sidebarLoginBtn.addEventListener('click', ()=> loginBtn.click());
     function syncLoginState(){
@@ -4029,6 +4043,8 @@ refreshAuthState().then(()=> loadAll()).then(()=> initFranceMap());
       sidebarLoginBtn.title = loginBtn.title;
       if(sidebarAccountStatusText) sidebarAccountStatusText.textContent = admin ? 'Admin' : 'Invité';
       if(sidebarStatusDot) sidebarStatusDot.classList.toggle('online', admin);
+      // Même pastille sur l'icône #loginBtn du topbar mobile (voir new_style.css).
+      if(mobileLoginDot) mobileLoginDot.classList.toggle('online', admin);
     }
     syncLoginState();
     if(loginBtnLabel) new MutationObserver(syncLoginState).observe(loginBtnLabel, { childList:true, characterData:true, subtree:true });
