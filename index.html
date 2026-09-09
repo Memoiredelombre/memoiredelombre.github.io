@@ -623,7 +623,7 @@
      sur mobile. */
   .gallery-header{display:flex; align-items:center; justify-content:space-between; gap:14px; margin-bottom:18px;}
   .gallery-header h2{font-family:'Space Grotesk',sans-serif; font-size:21px; font-weight:500; margin:0;}
-  .ig-gallery{display:grid; grid-template-columns:repeat(4, 1fr); gap:10px;}
+  .ig-gallery{display:grid; grid-template-columns:repeat(5, 1fr); gap:10px;}
   @media(max-width:900px){.ig-gallery{grid-template-columns:repeat(3, 1fr);}}
   @media(max-width:560px){.ig-gallery{grid-template-columns:repeat(3, 1fr); gap:3px;}}
   .ig-tile{position:relative; overflow:hidden; border-radius:var(--r-md); background:var(--surface-2); border:1px solid var(--border); cursor:pointer; aspect-ratio:1/1; transition:transform .2s ease, box-shadow .2s ease;}
@@ -650,6 +650,24 @@
   .delete-confirm-text{font-size:13.5px; color:var(--ink-soft); line-height:1.55; margin:0;}
   .delete-confirm-text b{color:var(--ink); font-weight:700;}
   .delete-confirm-warn{display:block; margin-top:8px; color:var(--danger); font-weight:600; font-size:12.5px;}
+
+  /* Toasts (remplacent window.alert() par des notifications non bloquantes,
+     cohérentes avec le thème sombre/ambre). Voir showToast() dans le script
+     additif en bas de page et #toastContainer dans le HTML. */
+  .toast-container{position:fixed; right:18px; bottom:18px; z-index:1200; display:flex; flex-direction:column; gap:10px; max-width:min(360px, calc(100vw - 36px)); pointer-events:none;}
+  .toast{pointer-events:auto; display:flex; align-items:flex-start; gap:10px; padding:12px 14px; border-radius:var(--r-sm); background:var(--surface-1); border:1px solid var(--border); box-shadow:var(--shadow-md); color:var(--ink); animation:toast-in .22s ease-out;}
+  .toast.error{border-color:color-mix(in srgb, var(--danger) 40%, var(--border)); box-shadow:var(--shadow-md), 0 0 0 1px color-mix(in srgb, var(--danger) 12%, transparent);}
+  .toast.leaving{animation:toast-out .2s ease-in forwards;}
+  .toast-icon{flex:none; width:18px; height:18px; margin-top:1px; color:var(--accent);}
+  .toast.error .toast-icon{color:var(--danger);}
+  .toast-icon svg{width:100%; height:100%;}
+  .toast-text{flex:1; font-size:13px; line-height:1.5; color:var(--ink-soft);}
+  .toast-close{flex:none; background:none; border:none; color:var(--ink-faint); font-size:18px; line-height:1; cursor:pointer; padding:0 0 0 4px;}
+  .toast-close:hover{color:var(--ink);}
+  @keyframes toast-in{from{opacity:0; transform:translateY(8px);} to{opacity:1; transform:translateY(0);}}
+  @keyframes toast-out{from{opacity:1; transform:translateY(0);} to{opacity:0; transform:translateY(8px);}}
+  @media(max-width:480px){.toast-container{left:12px; right:12px; bottom:12px; max-width:none;}}
+
   body.privacy-on .locked-panel{display:none;}
   body.privacy-on .field-row.locked{display:none;}
   body.privacy-on .mini-price{display:none;}
@@ -848,6 +866,19 @@
 </style>
 </head>
 <body class="dark">
+<script>
+// Applique la préférence de thème mémorisée AVANT le premier rendu visuel,
+// pour éviter un flash sombre -> clair au chargement si l'utilisateur a
+// choisi le mode clair. Lecture seule ici : la sauvegarde se fait à chaque
+// clic sur #darkModeBtn, dans le script additif en bas de page (le bouton
+// lui-même et le basculement body.classList('dark') restent entièrement
+// gérés par le script principal, inchangé).
+try{
+  var mdoSavedTheme = localStorage.getItem('mdo-theme');
+  if(mdoSavedTheme === 'light') document.body.classList.remove('dark');
+  else if(mdoSavedTheme === 'dark') document.body.classList.add('dark');
+}catch(e){ /* localStorage indisponible (navigation privée stricte, etc.) : thème par défaut conservé */ }
+</script>
 
 <div class="app-shell">
   <aside class="sidebar">
@@ -1045,6 +1076,28 @@
           </div>
         </div>
       </div>
+
+      <!-- Confirmation générique (remplace le window.confirm() natif restant,
+           ex. suppression d'une photo) — même principe que #deleteConfirmModal
+           ci-dessus mais réutilisable avec un message/libellé variables, voir
+           askGenericConfirm() dans le script additif en bas de page. -->
+      <div id="genericConfirmModal" class="modal-overlay" style="display:none;">
+        <div class="modal-box danger-modal">
+          <div class="danger-modal-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+          </div>
+          <p class="delete-confirm-text" id="genericConfirmText"></p>
+          <div class="modal-actions">
+            <button class="btn btn-secondary" id="genericConfirmCancelBtn">Annuler</button>
+            <button class="btn btn-danger" id="genericConfirmOkBtn">Confirmer</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Toasts (remplacent window.alert() pour les messages d'erreur liés
+           aux photos) — non bloquants, cohérents avec le thème sombre/ambre.
+           Voir showToast() dans le script additif en bas de page. -->
+      <div id="toastContainer" class="toast-container" aria-live="polite"></div>
 
       <section class="view active" id="view-dashboard">
         <div class="kpi-row">
@@ -1584,7 +1637,14 @@ async function loadAll(){
   }
   ALL_OBJETS = objets || [];
 
-  const { data: photos } = await sb.from('photos').select('*');
+  const { data: photos, error: photosError } = await sb.from('photos').select('*');
+  if(photosError){
+    // Erreur non bloquante : la collection reste consultable sans les photos,
+    // mais l'utilisateur doit être prévenu (avant ce correctif, l'échec était
+    // totalement silencieux — aucune trace même dans la console).
+    console.error('Erreur chargement photos:', photosError);
+    if(typeof showToast === 'function') showToast('Les photos n\'ont pas pu être chargées : ' + photosError.message);
+  }
   (photos||[]).forEach(p=>{
     PHOTOS_BY_OBJET[p.objet_uid] = PHOTOS_BY_OBJET[p.objet_uid] || [];
     PHOTOS_BY_OBJET[p.objet_uid].push(p);
@@ -2708,8 +2768,8 @@ document.addEventListener('keydown', e=>{
 });
 
 async function handleDeletePhoto(photoId, storagePath, uid){
-  if(!confirm('Supprimer cette photo ?')) return;
-  try{ await deleteFromScaleway(storagePath); }catch(err){ alert("Erreur de suppression : " + (err.detail || err.message)); return; }
+  if(!await askGenericConfirm('Supprimer cette photo ?', 'Supprimer')) return;
+  try{ await deleteFromScaleway(storagePath); }catch(err){ showToast("Erreur de suppression : " + (err.detail || err.message), 'error'); return; }
   await sb.from('photos').delete().eq('id', photoId);
   await refreshPhotosCache();
   renderPhotoGallery(uid);
@@ -2726,11 +2786,11 @@ async function handleAddExtraPhoto(event, uid){
   try{
     const { blob, ext, contentType } = await compressToWebp(file);
     const path = `${uid}/autre-${Date.now()}.${ext}`;
-    try{ await uploadToScaleway(path, blob, contentType); }catch(err){ alert("Erreur d'envoi : " + (err.detail || err.message)); return; }
+    try{ await uploadToScaleway(path, blob, contentType); }catch(err){ showToast("Erreur d'envoi : " + (err.detail || err.message), 'error'); return; }
     const existing = (PHOTOS_BY_OBJET[uid]||[]).filter(s=>s.label==='Autre');
     const nextPos = existing.length ? Math.max(...existing.map(s=>s.position||0)) + 1 : 1;
     const { error: insErr } = await sb.from('photos').insert({ objet_uid: uid, storage_path: path, label: 'Autre', position: nextPos });
-    if(insErr){ alert("Photo envoyée sur Scaleway, mais erreur d'enregistrement en base : " + insErr.message); return; }
+    if(insErr){ showToast("Photo envoyée sur Scaleway, mais erreur d'enregistrement en base : " + insErr.message, 'error'); return; }
     await refreshPhotosCache();
     renderPhotoGallery(uid);
   } finally {
@@ -2761,7 +2821,7 @@ async function handleUploadChange(event, uid, label, photoId){
     try{
       await uploadToScaleway(path, blob, contentType);
     }catch(err){
-      alert("Erreur d'envoi de la photo : " + (err.detail || err.message));
+      showToast("Erreur d'envoi de la photo : " + (err.detail || err.message), 'error');
       return;
     }
 
@@ -2773,7 +2833,7 @@ async function handleUploadChange(event, uid, label, photoId){
     }
     const position = label === 'Autre' ? ((PHOTOS_BY_OBJET[uid]||[]).filter(s=>s.label==='Autre').length + 1) : null;
     const { error: insErr } = await sb.from('photos').insert({ objet_uid: uid, storage_path: path, label: label, position });
-    if(insErr){ alert("Photo envoyée sur Scaleway, mais erreur d'enregistrement en base : " + insErr.message); return; }
+    if(insErr){ showToast("Photo envoyée sur Scaleway, mais erreur d'enregistrement en base : " + insErr.message, 'error'); return; }
 
     await refreshPhotosCache();
     renderPhotoGallery(uid);
@@ -3384,13 +3444,13 @@ refreshAuthState().then(()=> loadAll()).then(()=> initFranceMap());
 
       const { error } = await sb.from('objets').delete().eq('uid', uid);
       if(error){
-        alert('Erreur de suppression : ' + error.message);
+        showToast('Erreur de suppression : ' + error.message, 'error');
         if(delBtn) delBtn.disabled = false;
         if(editBtn) editBtn.disabled = false;
         return;
       }
     }catch(err){
-      alert('Erreur de suppression : ' + (err.message || err));
+      showToast('Erreur de suppression : ' + (err.message || err), 'error');
       if(delBtn) delBtn.disabled = false;
       if(editBtn) editBtn.disabled = false;
       return;
@@ -3445,7 +3505,7 @@ refreshAuthState().then(()=> loadAll()).then(()=> initFranceMap());
     const advAuthenticite = ADV_FILTERS.advAuthenticite;
     let items = ALL_OBJETS.filter(o=>{
       const matchType = filterType==='Tous' || o.type_objet===filterType;
-      const matchQuery = !q || stripAccents(`${o.titre} ${o.region||''} ${o.fabricant||''} ${o.departement||''}`.toLowerCase()).includes(q);
+      const matchQuery = !q || stripAccents(`${o.titre} ${o.region||''} ${o.fabricant||''} ${o.departement||''} ${o.id_public||''} ${o.notes||''} ${o.details||''} ${o.infos||''}`.toLowerCase()).includes(q);
       const matchDept = !ACTIVE_DEPT_FILTER || (o.departement && o.departement.split(';').some(s => extractDeptCode(s.trim()) === ACTIVE_DEPT_FILTER));
       const matchRarete = !advRarete || o.indice_rarete === advRarete;
       const matchEtat = !advEtat || o.etat_conservation === advEtat;
@@ -4293,6 +4353,101 @@ refreshAuthState().then(()=> loadAll()).then(()=> initFranceMap());
     if(isActive && !wasActive) render();
     wasActive = isActive;
   }).observe(galleryView, { attributes:true, attributeFilter:['class'] });
+})();
+
+// ============================================================
+// Toasts + confirmation générique, pour remplacer les alert()/confirm()
+// natifs du navigateur par des équivalents cohérents avec le thème de
+// l'appli (voir #toastContainer et #genericConfirmModal plus haut dans
+// le document). Fonctions globales, appelées depuis le script principal
+// (handleDeletePhoto, handleAddExtraPhoto, handleUploadChange,
+// handleDeleteObjet) et depuis loadAll() pour l'erreur de chargement des
+// photos.
+// ============================================================
+(function(){
+  const container = document.getElementById('toastContainer');
+
+  window.showToast = function(message, type){
+    if(!container) return;
+    const toast = document.createElement('div');
+    toast.className = 'toast' + (type === 'error' ? ' error' : '');
+    toast.innerHTML = `
+      <span class="toast-icon">${type === 'error'
+        ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>'
+        : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="M22 4 12 14.01l-3-3"/></svg>'}</span>
+      <span class="toast-text"></span>
+      <button type="button" class="toast-close" aria-label="Fermer">&times;</button>
+    `;
+    toast.querySelector('.toast-text').textContent = message;
+    container.appendChild(toast);
+
+    let dismissed = false;
+    function dismiss(){
+      if(dismissed) return;
+      dismissed = true;
+      toast.classList.add('leaving');
+      setTimeout(()=> toast.remove(), 220);
+    }
+    toast.querySelector('.toast-close').addEventListener('click', dismiss);
+    setTimeout(dismiss, 6000);
+  };
+
+  // Confirmation générique — même principe que askDeleteConfirmation()
+  // (autre IIFE, plus haut), mais réutilisable avec un message et un
+  // libellé de bouton variables. Retourne une Promise<boolean>.
+  window.askGenericConfirm = function(message, okLabel){
+    return new Promise(resolve => {
+      const modal = document.getElementById('genericConfirmModal');
+      if(!modal){ resolve(window.confirm(message)); return; }
+      const text = document.getElementById('genericConfirmText');
+      const okBtn = document.getElementById('genericConfirmOkBtn');
+      const cancelBtn = document.getElementById('genericConfirmCancelBtn');
+      text.textContent = message;
+      okBtn.textContent = okLabel || 'Confirmer';
+      modal.style.display = 'flex';
+      function cleanup(result){
+        modal.style.display = 'none';
+        okBtn.removeEventListener('click', onOk);
+        cancelBtn.removeEventListener('click', onCancel);
+        modal.removeEventListener('click', onOverlay);
+        document.removeEventListener('keydown', onKey);
+        resolve(result);
+      }
+      function onOk(){ cleanup(true); }
+      function onCancel(){ cleanup(false); }
+      function onOverlay(e){ if(e.target === modal) cleanup(false); }
+      function onKey(e){ if(e.key === 'Escape') cleanup(false); }
+      okBtn.addEventListener('click', onOk);
+      cancelBtn.addEventListener('click', onCancel);
+      modal.addEventListener('click', onOverlay);
+      document.addEventListener('keydown', onKey);
+    });
+  };
+})();
+
+// ============================================================
+// Mémorisation du thème choisi (clair/sombre) entre deux visites.
+// La lecture initiale se fait avant le premier rendu, dans le petit
+// script inline juste après <body> (évite le flash sombre -> clair).
+// Ici, on se contente d'écouter en plus le bouton #darkModeBtn (déjà
+// géré intégralement par le script principal pour le toggle visuel
+// lui-même) pour persister le choix, et de resynchroniser l'icône au
+// chargement au cas où le script principal l'aurait déjà affichée
+// avant que la préférence mémorisée soit appliquée.
+// ============================================================
+(function(){
+  const darkModeBtn = document.getElementById('darkModeBtn');
+  if(!darkModeBtn) return;
+
+  darkModeBtn.addEventListener('click', ()=>{
+    try{
+      localStorage.setItem('mdo-theme', document.body.classList.contains('dark') ? 'dark' : 'light');
+    }catch(e){ /* localStorage indisponible : le choix ne sera simplement pas mémorisé */ }
+  });
+
+  // Resynchronise l'icône avec l'état réel du body (déjà positionné par
+  // le script inline anti-FOUC avant le rendu principal).
+  darkModeBtn.textContent = document.body.classList.contains('dark') ? '☀️' : '🌙';
 })();
 </script>
 </body>
