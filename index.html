@@ -924,7 +924,10 @@ try{
              par le gestionnaire de clic existant sur #tabs et par switchView()
              (getElementById('view-'+name)) — aucune modification du script
              principal nécessaire pour que cet onglet fonctionne. -->
-        <button class="nav-item" data-view="galerie" id="galerieTabBtn"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></span><span class="label-text">Galerie</span></button>
+        <!-- Icône "photo" (cadre + soleil + montagne) plutôt qu'une grille de
+             carrés : trop proche visuellement de l'icône du Tableau de bord
+             (elle-même une grille de rectangles), les deux se confondaient. -->
+        <button class="nav-item" data-view="galerie" id="galerieTabBtn"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.6"/><path d="m21 15-5-5-9 9"/></svg></span><span class="label-text">Galerie</span></button>
         <!-- Pas d'onglet "Fiche" dans ce menu : une fiche d'objet n'est pas une
              section de premier niveau, on y arrive toujours depuis le catalogue,
              la galerie ou le tableau de bord, et le bouton "Retour" de la fiche
@@ -2633,6 +2636,8 @@ function showFiche(uid){
           <div class="field-row"><div class="k">Détails</div><div class="v">${esc(o.details) || '—'}</div></div>
           <div class="field-row"><div class="k">Taille</div><div class="v mono">${esc(o.taille) || '—'}</div></div>
           <div class="field-row"><div class="k">Fabricant</div><div class="v">${esc(o.fabricant) || '—'}</div></div>
+          <div class="field-row"><div class="k">Type de tirage</div><div class="v">${esc(o.type_tirage) || '—'}</div></div>
+          <div class="field-row"><div class="k">Quantité (tirage)</div><div class="v mono">${(o.quantite_tirage === undefined || o.quantite_tirage === null || o.quantite_tirage === '') ? '—' : esc(o.quantite_tirage)}</div></div>
           <div class="field-row"><div class="k">Détail tirage</div><div class="v">${esc(o.detail_tirage) || '—'}</div></div>
           <div class="field-row"><div class="k">Date de fabrication</div><div class="v mono">${o.date_fabrication ? new Date(o.date_fabrication).toLocaleDateString('fr-FR') : '—'}</div></div>
           <div class="field-row"><div class="k">Type de variante</div><div class="v">${esc(o.type_variante) || '—'}</div></div>
@@ -2951,6 +2956,13 @@ function fieldHtml(col, label, type, val, opts){
       : '';
     return `<div class="form-field full"><label>${esc(label)}</label><textarea id="f_${col}">${esc(v)}</textarea>${hint}</div>`;
   }
+  if(type==='datalist'){
+    const listId = 'dl_' + col;
+    return `<div class="form-field"><label>${esc(label)}</label>
+      <input id="f_${col}" type="text" list="${listId}" value="${esc(v)}" autocomplete="off">
+      <datalist id="${listId}">${(opts||[]).map(o=>`<option value="${esc(o)}"></option>`).join('')}</datalist>
+    </div>`;
+  }
   return `<div class="form-field"><label>${esc(label)}</label><input id="f_${col}" type="${type}" value="${esc(v)}"></div>`;
 }
 
@@ -2961,6 +2973,8 @@ function openForm(mode, objet){
   FORM_MODE = mode;
   FORM_UID = objet ? objet.uid : null;
   const o = objet || {};
+  const REGION_VALUES = [...new Set((typeof ALL_OBJETS !== 'undefined' ? ALL_OBJETS : []).map(x=>x.region).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'fr'));
+  const MOUVEMENT_VALUES = [...new Set((typeof ALL_OBJETS !== 'undefined' ? ALL_OBJETS : []).map(x=>x.mouvement).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'fr'));
   document.getElementById('formContent').innerHTML = `
     <div class="form-card">
       <h2>${mode==='edit' ? 'Modifier l’objet '+esc(o.id_public) : 'Nouvel objet'}</h2>
@@ -2970,9 +2984,9 @@ function openForm(mode, objet){
         <div class="form-grid">
           ${fieldHtml('type_objet',"Type d'objet",'select',o.type_objet,TYPE_OBJET_OPTIONS)}
           ${fieldHtml('titre','Titre','text',o.titre)}
-          ${fieldHtml('region','Région','text',o.region)}
+          ${fieldHtml('region','Région','datalist',o.region,REGION_VALUES)}
           ${fieldHtml('departement','Département','text',o.departement)}
-          ${fieldHtml('mouvement','Mouvement','text',o.mouvement)}
+          ${fieldHtml('mouvement','Mouvement','datalist',o.mouvement,MOUVEMENT_VALUES)}
         </div>
       </div>
 
