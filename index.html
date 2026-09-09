@@ -2636,8 +2636,6 @@ function showFiche(uid){
           <div class="field-row"><div class="k">Détails</div><div class="v">${esc(o.details) || '—'}</div></div>
           <div class="field-row"><div class="k">Taille</div><div class="v mono">${esc(o.taille) || '—'}</div></div>
           <div class="field-row"><div class="k">Fabricant</div><div class="v">${esc(o.fabricant) || '—'}</div></div>
-          <div class="field-row"><div class="k">Type de tirage</div><div class="v">${esc(o.type_tirage) || '—'}</div></div>
-          <div class="field-row"><div class="k">Quantité (tirage)</div><div class="v mono">${(o.quantite_tirage === undefined || o.quantite_tirage === null || o.quantite_tirage === '') ? '—' : esc(o.quantite_tirage)}</div></div>
           <div class="field-row"><div class="k">Détail tirage</div><div class="v">${esc(o.detail_tirage) || '—'}</div></div>
           <div class="field-row"><div class="k">Date de fabrication</div><div class="v mono">${o.date_fabrication ? new Date(o.date_fabrication).toLocaleDateString('fr-FR') : '—'}</div></div>
           <div class="field-row"><div class="k">Type de variante</div><div class="v">${esc(o.type_variante) || '—'}</div></div>
@@ -2940,6 +2938,18 @@ const ETAT_OPTIONS = ['Neuf','Très bon état','Bon état','Usure légère','Ab�
 const AUTHENTICITE_OPTIONS = ['Authentique','Copie / Reproduction','Refrappe','Faux / Contrefaçon','À vérifier'];
 const TYPE_OBJET_OPTIONS = ['Insigne','Brassard','Médaille','Médaille de table','Livre','Document','Porte-clés','Breloque','À classer','Divers'];
 const TYPE_TIRAGE_OPTIONS = ['','TE','TC','Mixte','Inconnu'];
+
+// Construit le texte de "Détail tirage" à partir du type et de la quantité,
+// pour alimenter automatiquement ce champ dans le formulaire.
+function computeDetailTirage(type, quantite){
+  const parts = [];
+  if(type) parts.push(type);
+  const qNum = parseInt(quantite, 10);
+  if(quantite !== '' && quantite !== null && quantite !== undefined && !isNaN(qNum)){
+    parts.push(`${qNum} exemplaire${qNum > 1 ? 's' : ''}`);
+  }
+  return parts.join(' — ');
+}
 const VISIBILITE_OPTIONS = ['Partageable','Privé'];
 
 // Génère un champ du formulaire (texte, select ou zone de texte) selon son type.
@@ -3041,6 +3051,29 @@ function openForm(mode, objet){
     </div>
   `;
   document.getElementById('saveObjetBtn').addEventListener('click', saveObjet);
+
+  // "Type de tirage" et "Quantité" alimentent automatiquement "Détail tirage"
+  // (texte libre), sauf si ce dernier contient déjà un texte personnalisé
+  // qui ne correspond pas à ce que type+quantité auraient généré.
+  (function wireTirageAutofill(){
+    const typeEl = document.getElementById('f_type_tirage');
+    const qteEl = document.getElementById('f_quantite_tirage');
+    const detailEl = document.getElementById('f_detail_tirage');
+    if(!typeEl || !qteEl || !detailEl) return;
+    let prevType = typeEl.value, prevQte = qteEl.value;
+    function sync(){
+      const previousAuto = computeDetailTirage(prevType, prevQte);
+      const nextAuto = computeDetailTirage(typeEl.value, qteEl.value);
+      if(detailEl.value === '' || detailEl.value === previousAuto){
+        detailEl.value = nextAuto;
+      }
+      prevType = typeEl.value;
+      prevQte = qteEl.value;
+    }
+    typeEl.addEventListener('change', sync);
+    qteEl.addEventListener('input', sync);
+  })();
+
   switchView('form');
 }
 
