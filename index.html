@@ -7,8 +7,15 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css">
-<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<!-- Version Leaflet figée (1.9.4, stable) plutôt que "la dernière disponible" :
+     évite qu'une future mise à jour incompatible de la bibliothèque ne
+     casse la carte sans prévenir. -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<!-- JSZip : utilisé uniquement par la sauvegarde complète (données + photos)
+     dans Paramètres, pour assembler l'archive .zip téléchargeable
+     entièrement côté navigateur — voir generateFullBackup() plus bas. -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <style>
   /* ============================================================
      DESIGN TOKENS — "VOÛTE" (refonte v5)
@@ -304,6 +311,16 @@
     backdrop-filter:none; -webkit-backdrop-filter:none;
   }
   .login-page-card{width:100%; max-width:900px; max-height:calc(100vh - 40px); overflow-y:auto; min-height:460px; background:var(--surface); border:1px solid var(--border); border-radius:var(--r-lg); box-shadow:var(--shadow-md); display:grid; grid-template-columns:1fr 1fr;}
+
+  /* État "Vérification de la session…" — affiché à la place de .login-page-card
+     tant que #loginModal porte la classe .checking (voir l'IIFE "porte
+     d'entrée" dans le script additif). Évite qu'un admin déjà connecté (session
+     Supabase persistée) ne voie le formulaire clignoter avant fermeture. */
+  .login-page-checking{display:none; flex-direction:column; align-items:center; justify-content:center; gap:14px; padding:60px 40px; color:var(--ink-soft); font-size:13.5px;}
+  #loginModal.checking .login-page-checking{display:flex;}
+  #loginModal.checking .login-page-card{display:none;}
+  .login-page-checking-spinner{width:26px; height:26px; border-radius:50%; border:3px solid var(--border); border-top-color:var(--accent); animation:mdo-spin .8s linear infinite;}
+  @keyframes mdo-spin{to{transform:rotate(360deg);}}
   .login-page-brand{background:linear-gradient(160deg, color-mix(in srgb, var(--accent) 14%, var(--surface)), var(--surface) 75%); border-right:1px solid var(--border); padding:48px 42px; display:flex; flex-direction:column; justify-content:center; gap:14px; position:relative; overflow:hidden;}
   .login-page-deco{position:absolute; right:-30px; bottom:-40px; width:220px; height:290px; color:var(--accent); opacity:.07; pointer-events:none;}
   .login-page-deco svg{width:100%; height:100%;}
@@ -374,6 +391,10 @@
   .settings-row-label{display:flex; flex-direction:column; gap:2px;}
   .settings-row-label strong{font-size:13.5px; font-weight:600; color:var(--ink);}
   .settings-row-label span{font-size:11.5px; color:var(--ink-soft);}
+  /* Rappel visuel quand la sauvegarde complète n'a jamais été faite ou date
+     de plus de BACKUP_REMINDER_DAYS jours (voir #settingsBackupStatus dans
+     le script additif). */
+  .settings-row-label span.overdue{color:var(--danger);}
   .settings-switch{position:relative; width:42px; height:24px; border-radius:14px; background:var(--surface-2); border:1px solid var(--border); flex:none; cursor:pointer; padding:0; transition:background .15s ease, border-color .15s ease;}
   .settings-switch .knob{position:absolute; top:2px; left:2px; width:18px; height:18px; border-radius:50%; background:var(--ink-faint); transition:transform .18s ease, background .15s ease;}
   .settings-switch.on{background:var(--accent); border-color:var(--accent);}
@@ -981,6 +1002,18 @@ try{
     <div class="content">
 
       <div id="loginModal" class="modal-overlay login-page-overlay" style="display:none;">
+        <!-- Vérification de session : affichée en premier au chargement (via
+             la classe #loginModal.checking, posée par l'IIFE "porte d'entrée"
+             dans le script additif), le temps que refreshAuthState() (script
+             principal) confirme si une session admin déjà active doit rouvrir
+             l'appli directement — évite qu'un utilisateur déjà connecté voie
+             le formulaire de connexion clignoter avant que la porte se
+             referme. Purement cosmétique, aucune logique de connexion
+             dupliquée ici. -->
+        <div class="login-page-checking" id="loginCheckingState">
+          <div class="login-page-checking-spinner" aria-hidden="true"></div>
+          <p>Vérification de la session…</p>
+        </div>
         <div class="login-page-card">
           <div class="login-page-brand">
             <div class="login-page-deco">
@@ -1046,15 +1079,30 @@ try{
             <div class="form-msg" id="settingsPasswordMsg"></div>
           </div>
 
-          <!-- Export de la collection : CSV (sauvegarde des données) et
-               impression/PDF (via l'impression native du navigateur, sans
-               dépendance externe) — réservé à l'admin, comme ci-dessus. -->
+          <!-- Export de la collection : CSV (pour tableur) et impression/PDF
+               (via l'impression native du navigateur, sans dépendance
+               externe) — pensés pour consulter/partager, pas pour restaurer
+               la collection en cas de perte (voir Sauvegarde complète
+               ci-dessous). Réservé à l'admin, comme ci-dessus. -->
           <div class="settings-row" id="settingsExportRow">
-            <div class="settings-row-label"><strong>Export de la collection</strong><span>Sauvegarde CSV ou impression PDF</span></div>
+            <div class="settings-row-label"><strong>Export de la collection</strong><span>Tableau CSV ou impression PDF</span></div>
             <div class="settings-export-actions">
               <button class="btn btn-secondary" id="settingsExportCsvBtn" type="button">CSV</button>
               <button class="btn btn-secondary" id="settingsExportPdfBtn" type="button">PDF</button>
             </div>
+          </div>
+
+          <!-- Sauvegarde complète : contrairement à l'export ci-dessus, vise
+               la restauration en cas de perte — une archive .zip contenant
+               toutes les données brutes de chaque objet (collection.json)
+               ET les photos elles-mêmes, générée entièrement dans le
+               navigateur (JSZip). La date de dernière sauvegarde est
+               mémorisée localement (par admin/navigateur) pour afficher un
+               simple rappel — voir generateFullBackup() dans le script
+               additif en bas de page. Réservé à l'admin, comme ci-dessus. -->
+          <div class="settings-row" id="settingsBackupRow">
+            <div class="settings-row-label"><strong>Sauvegarde complète</strong><span id="settingsBackupStatus">Données et photos, pour restauration</span></div>
+            <button class="btn btn-secondary" id="settingsBackupBtn" type="button">Télécharger</button>
           </div>
 
           <div class="modal-actions">
@@ -1567,6 +1615,33 @@ async function getCachedBlobUrl(url){
   }
 }
 
+// ---------- Cache du fond de carte départements (même principe que les photos
+// ci-dessus) : le contour des départements français ne change pour ainsi dire
+// jamais, inutile de le retélécharger depuis GitHub à chaque ouverture de
+// l'appli — ça ralentissait le premier affichage de la carte et ajoutait une
+// dépendance réseau externe à chaque visite pour un fichier statique. ----------
+const GEO_CACHE_NAME = 'ffi-geo-v1';
+
+async function getCachedJson(url){
+  if(!CACHE_SUPPORTED){
+    try{ const r = await fetch(url); return (r && r.ok) ? await r.json() : null; }
+    catch(err){ return null; }
+  }
+  try{
+    const cache = await caches.open(GEO_CACHE_NAME);
+    let response = await cache.match(url);
+    if(!response){
+      response = await fetch(url);
+      if(response && response.ok) await cache.put(url, response.clone());
+    }
+    if(!response || !response.ok) return null;
+    return await response.json();
+  }catch(err){
+    try{ const r = await fetch(url); return (r && r.ok) ? await r.json() : null; }
+    catch(err2){ return null; } // en cas d'échec (réseau, Cache API indisponible…) : la carte s'affiche simplement sans le fond départemental, comme avant ce correctif
+  }
+}
+
 // Hydrate toutes les <img class="cached-img" data-src="..."> d'un conteneur avec la version mise en cache
 function hydrateCachedImages(container, nodes){
   let imgs;
@@ -1645,6 +1720,14 @@ async function loadAll(){
     console.error('Erreur chargement photos:', photosError);
     if(typeof showToast === 'function') showToast('Les photos n\'ont pas pu être chargées : ' + photosError.message);
   }
+  // Repart d'un cache vide à chaque appel : loadAll() est réinvoquée
+  // plusieurs fois par session normale (connexion, déconnexion, après
+  // création/suppression d'un objet…) — sans cette remise à zéro, les
+  // photos déjà en cache restaient et s'additionnaient à chaque nouvel
+  // appel au lieu d'être remplacées, dupliquant silencieusement chaque
+  // photo en mémoire (même principe que refreshPhotosCache() ci-dessous,
+  // qui le fait déjà correctement).
+  PHOTOS_BY_OBJET = {};
   (photos||[]).forEach(p=>{
     PHOTOS_BY_OBJET[p.objet_uid] = PHOTOS_BY_OBJET[p.objet_uid] || [];
     PHOTOS_BY_OBJET[p.objet_uid].push(p);
@@ -1664,7 +1747,10 @@ let franceMap = null;
 let franceGeoLayer = null;
 
 const FRANCE_GEOJSON_URL = 'https://raw.githubusercontent.com/gregoiredavid/france-geojson/master/departements.geojson';
-const franceGeoJsonPromise = fetch(FRANCE_GEOJSON_URL).then(r=>r.json()).catch(()=>null);
+// Version mise en cache (voir getCachedJson ci-dessus) : ne redescend le
+// fichier depuis GitHub qu'une seule fois par navigateur, au lieu de le
+// retélécharger à chaque ouverture de l'appli.
+const franceGeoJsonPromise = getCachedJson(FRANCE_GEOJSON_URL);
 
 async function getDeptCentroid(code){
   const geojson = await franceGeoJsonPromise;
@@ -4039,28 +4125,60 @@ refreshAuthState().then(()=> loadAll()).then(()=> initFranceMap());
 // PREMIER, avant tout accès au contenu de l'application, aussi bien pour un
 // visiteur anonyme que pour un admin dont la session Supabase n'a pas encore
 // été vérifiée. Aucune logique de connexion n'est dupliquée :
-//  1. On affiche simplement la modale au chargement (displays flex) — un
-//     pur effet visuel, la logique de connexion elle-même est intacte.
+//  1. On affiche simplement la modale au chargement (display:flex) — un pur
+//     effet visuel, la logique de connexion elle-même est intacte.
 //     "Continuer en tant qu'invité" (ex-"Annuler") reste le bouton existant,
 //     seul son libellé change pour rester clair dans ce nouveau contexte.
-//  2. Si une session admin est déjà active (ex : F5 après connexion), la
-//     porte doit se refermer automatiquement sans redemander de mot de
-//     passe. Pour le savoir, on enrichit applyAuthUI() — déjà appelée par
-//     refreshAuthState() au chargement — d'un effet de bord, plutôt que de
-//     réécrire la détection de session : à l'exécution de ce script,
-//     refreshAuthState() a déjà été LANCÉE (ligne du script principal) mais
-//     sa continuation (await sb.auth.getSession() puis applyAuthUI()) ne
-//     s'exécute qu'après, en microtâche — remplacer window.applyAuthUI ici
-//     est donc bien pris en compte au moment où elle est appelée.
+//  2. Pendant la vérification (le temps que Supabase confirme ou non une
+//     session existante), on montre un état neutre "Vérification de la
+//     session…" (#loginCheckingState) plutôt que le formulaire de connexion
+//     lui-même — sinon un admin déjà connecté (session persistée par
+//     Supabase) voit le formulaire clignoter une fraction de seconde avant
+//     que la porte ne se referme, ce qui peut donner l'impression à tort de
+//     devoir se reconnecter à chaque rechargement alors que la session est
+//     bien conservée.
+//  3. Pour savoir quand la vérification est vraiment terminée, on RÉ-APPELLE
+//     nous-mêmes refreshAuthState() (script principal) et on attend sa
+//     réponse, plutôt que d'intercepter l'appel initial déjà lancé plus haut
+//     dans le script principal en remplaçant window.applyAuthUI : ce
+//     remplacement arriverait trop tard si cet appel initial a déjà résolu
+//     (session locale retrouvée quasi instantanément, sans aller-retour
+//     réseau) avant que ce script-ci ne s'exécute — un remplacement de
+//     fonction n'a aucun effet sur un appel déjà en cours. refreshAuthState()
+//     est sans effet de bord problématique à ré-appeler (elle relit juste
+//     sb.auth.getSession() et rappelle applyAuthUI(), toutes deux
+//     idempotentes), donc l'attendre nous-mêmes ici est fiable quel que soit
+//     l'ordre réel d'exécution. Un filet de sécurité (délai de 4s) révèle
+//     malgré tout le formulaire si Supabase ne répond pas, pour ne jamais
+//     bloquer un visiteur sur cet état.
 // ============================================================
 (function(){
   const loginModal = document.getElementById('loginModal');
   const loginMsg = document.getElementById('loginMsg');
+  const loginBtn = document.getElementById('loginBtn');
+  const loginCancelBtn = document.getElementById('loginCancelBtn');
   if(!loginModal) return;
 
+  loginModal.classList.add('checking');
   loginModal.style.display = 'flex';
   if(loginMsg) loginMsg.textContent = '';
 
+  let settled = false;
+  function clearChecking(){
+    settled = true;
+    loginModal.classList.remove('checking');
+  }
+  // Si le visiteur interagit avec la porte pendant que la vérification est
+  // encore en cours (formulaire pas encore révélé), on ne le laisse pas
+  // bloqué devant le message de vérification.
+  if(loginBtn) loginBtn.addEventListener('click', clearChecking);
+  if(loginCancelBtn) loginCancelBtn.addEventListener('click', clearChecking);
+
+  // Filet de sécurité supplémentaire : si IS_ADMIN passe à true via un appel
+  // à applyAuthUI() survenant après notre propre vérification ci-dessous
+  // (ex. un rafraîchissement de session qui aboutit plus tard que prévu),
+  // on referme quand même la porte au lieu de la laisser ouverte devant une
+  // session pourtant valide.
   if(typeof window.applyAuthUI === 'function'){
     const originalApplyAuthUI = window.applyAuthUI;
     window.applyAuthUI = function(){
@@ -4068,8 +4186,23 @@ refreshAuthState().then(()=> loadAll()).then(()=> initFranceMap());
       if(typeof IS_ADMIN !== 'undefined' && IS_ADMIN && loginModal.style.display !== 'none'){
         loginModal.style.display = 'none';
       }
+      clearChecking();
     };
   }
+
+  (async function(){
+    try{
+      await Promise.race([
+        (typeof refreshAuthState === 'function' ? refreshAuthState() : Promise.resolve()),
+        new Promise(resolve => setTimeout(resolve, 4000))
+      ]);
+    }catch(e){ /* on retombe simplement sur le formulaire de connexion */ }
+
+    if(typeof IS_ADMIN !== 'undefined' && IS_ADMIN){
+      loginModal.style.display = 'none';
+    }
+    clearChecking();
+  })();
 })();
 
 // ============================================================
@@ -4139,6 +4272,9 @@ refreshAuthState().then(()=> loadAll()).then(()=> initFranceMap());
   const exportCsvBtn = document.getElementById('settingsExportCsvBtn');
   const exportPdfBtn = document.getElementById('settingsExportPdfBtn');
   const printContainer = document.getElementById('printExportContainer');
+  const backupRow = document.getElementById('settingsBackupRow');
+  const backupBtn = document.getElementById('settingsBackupBtn');
+  const backupStatus = document.getElementById('settingsBackupStatus');
 
   if(settingsBtn && settingsModal){
     // Ne touche QUE le mini-formulaire (le masque, vide les champs) — jamais
@@ -4162,6 +4298,7 @@ refreshAuthState().then(()=> loadAll()).then(()=> initFranceMap());
       if(adminVisible) privacySwitch.classList.toggle('on', document.body.classList.contains('privacy-on'));
       if(passwordRow) passwordRow.style.display = adminVisible ? 'flex' : 'none';
       if(exportRow) exportRow.style.display = adminVisible ? 'flex' : 'none';
+      if(backupRow) backupRow.style.display = adminVisible ? 'flex' : 'none';
       collapsePasswordForm();
     }
     function closeSettings(){ settingsModal.style.display = 'none'; }
@@ -4270,6 +4407,142 @@ refreshAuthState().then(()=> loadAll()).then(()=> initFranceMap());
         `;
         window.print();
       });
+    }
+
+    // ------------------------------------------------------------
+    // Sauvegarde complète (données + photos) : contrairement à l'export
+    // CSV/PDF ci-dessus (pensé pour consulter/imprimer), celle-ci vise la
+    // restauration en cas de perte de la base — une archive .zip contenant
+    // toutes les données brutes de chaque objet (collection.json, tous les
+    // champs, y compris privés puisque réservé à l'admin) ET les photos
+    // elles-mêmes, générée entièrement dans le navigateur via JSZip (voir
+    // <script> en tête de document) — aucun serveur/fonction supplémentaire
+    // nécessaire. La date de dernière sauvegarde est mémorisée en local
+    // (par admin/navigateur, non partagée entre appareils) uniquement pour
+    // afficher un rappel simple : ce n'est pas une automatisation en
+    // arrière-plan, il faut avoir ouvert l'appli et cliqué "Télécharger".
+    // ------------------------------------------------------------
+    const LAST_BACKUP_KEY = 'mdo-last-backup';
+    const BACKUP_REMINDER_DAYS = 30;
+
+    function lastBackupDate(){
+      try{
+        const raw = localStorage.getItem(LAST_BACKUP_KEY);
+        return raw ? new Date(parseInt(raw, 10)) : null;
+      }catch(e){ return null; }
+    }
+    function daysSince(date){
+      return Math.floor((Date.now() - date.getTime()) / 86400000);
+    }
+    function updateBackupStatus(){
+      if(!backupStatus) return;
+      const last = lastBackupDate();
+      if(!last){
+        backupStatus.textContent = 'Aucune sauvegarde effectuée pour le moment';
+        backupStatus.classList.add('overdue');
+      } else {
+        const n = daysSince(last);
+        backupStatus.textContent = n <= 0 ? "Dernière sauvegarde : aujourd'hui" : `Dernière sauvegarde : il y a ${n} jour${n>1?'s':''}`;
+        backupStatus.classList.toggle('overdue', n >= BACKUP_REMINDER_DAYS);
+      }
+    }
+    updateBackupStatus();
+
+    function extFromPath(path){
+      const m = /\.([a-zA-Z0-9]+)$/.exec(path || '');
+      return m ? m[1].toLowerCase() : 'jpg';
+    }
+
+    async function generateFullBackup(){
+      if(typeof JSZip === 'undefined'){
+        if(typeof showToast === 'function') showToast("La bibliothèque de compression n'a pas pu être chargée — vérifiez votre connexion et réessayez.", 'error');
+        return;
+      }
+      const originalLabel = backupBtn.textContent;
+      backupBtn.disabled = true;
+      backupBtn.textContent = 'Génération…';
+      if(typeof showToast === 'function') showToast('Génération de la sauvegarde en cours — cela peut prendre un moment selon le nombre de photos.');
+
+      try{
+        const objets = currentObjets();
+        const photosByObjet = (typeof PHOTOS_BY_OBJET !== 'undefined') ? PHOTOS_BY_OBJET : {};
+        const allPhotos = Object.keys(photosByObjet).reduce((acc, uid) => acc.concat(photosByObjet[uid] || []), []);
+
+        const zip = new JSZip();
+        zip.file('collection.json', JSON.stringify({
+          genere_le: new Date().toISOString(),
+          objets: objets,
+          photos: allPhotos
+        }, null, 2));
+
+        const photosFolder = zip.folder('photos');
+        let ok = 0, failed = 0;
+        for(const p of allPhotos){
+          try{
+            const res = await fetch(scalewayPublicUrl(p.storage_path));
+            if(!res.ok) throw new Error('HTTP ' + res.status);
+            const blob = await res.blob();
+            const ext = extFromPath(p.storage_path);
+            const safeLabel = String(p.label || 'photo').toLowerCase().replace(/[^a-z0-9]+/g,'-');
+            photosFolder.folder(p.objet_uid).file(`${safeLabel}-${p.id}.${ext}`, blob);
+            ok++;
+          }catch(err){
+            failed++;
+          }
+        }
+
+        const zipBlob = await zip.generateAsync({ type:'blob' });
+        const date = new Date().toISOString().slice(0,10);
+        downloadBlob(zipBlob, `mdo-sauvegarde-${date}.zip`);
+
+        try{ localStorage.setItem(LAST_BACKUP_KEY, String(Date.now())); }catch(e){ /* sauvegarde téléchargée quand même, juste pas de rappel fiable ensuite */ }
+        updateBackupStatus();
+
+        if(typeof showToast === 'function'){
+          showToast(
+            failed
+              ? `Sauvegarde générée : ${objets.length} objet(s), ${ok} photo(s) (${failed} non récupérée(s)).`
+              : `Sauvegarde générée : ${objets.length} objet(s), ${ok} photo(s).`,
+            failed ? 'error' : undefined
+          );
+        }
+      }catch(err){
+        if(typeof showToast === 'function') showToast('Erreur lors de la génération de la sauvegarde : ' + (err.message || err), 'error');
+      }finally{
+        backupBtn.disabled = false;
+        backupBtn.textContent = originalLabel;
+      }
+    }
+
+    if(backupBtn) backupBtn.addEventListener('click', generateFullBackup);
+
+    // Rappel discret (une fois par session, jamais bloquant) si la dernière
+    // sauvegarde remonte à plus de BACKUP_REMINDER_DAYS jours ou n'a jamais
+    // été faite alors que la collection contient déjà des objets. On
+    // observe #authStatus (déjà mis à jour par applyAuthUI()) plutôt que
+    // d'intercepter un appel de fonction précis : cette approche reste
+    // fiable quel que soit l'ordre d'exécution des scripts (même principe
+    // que la porte d'entrée, voir plus haut).
+    let backupReminderShown = false;
+    function maybeShowBackupReminder(){
+      if(backupReminderShown) return;
+      const adminNow = !!(privacyToggleBtn && privacyToggleBtn.style.display !== 'none');
+      if(!adminNow) return;
+      const objs = currentObjets();
+      if(!objs.length) return;
+      const last = lastBackupDate();
+      if(last && daysSince(last) < BACKUP_REMINDER_DAYS) return;
+      backupReminderShown = true;
+      if(typeof showToast === 'function'){
+        showToast(last
+          ? `Cela fait plus de ${BACKUP_REMINDER_DAYS} jours sans sauvegarde complète de la collection — pensez à en générer une dans Paramètres.`
+          : "Aucune sauvegarde complète n'a encore été faite — pensez à en générer une dans Paramètres.");
+      }
+    }
+    const authStatusForBackup = document.getElementById('authStatus');
+    if(authStatusForBackup){
+      maybeShowBackupReminder();
+      new MutationObserver(maybeShowBackupReminder).observe(authStatusForBackup, { childList:true, characterData:true, subtree:true });
     }
   }
 })();
