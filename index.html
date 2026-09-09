@@ -803,6 +803,15 @@
   .card-top .sec{font-size:13px; color:var(--ink-soft);}
   .rarity-pill{display:flex; align-items:center; gap:8px; background:var(--accent-soft); border-radius:20px; padding:0 16px; height:40px; box-sizing:border-box; flex:none;}
   .rarity-pill .code{font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--accent); font-weight:700;}
+
+  /* Badge d'authenticité (vert=authentique, orange=à nuancer, rouge=faux, gris=non renseigné) */
+  .auth-badge{display:inline-flex; align-items:center; gap:6px; padding:0 13px; height:26px; border-radius:20px; font-size:12px; font-weight:700; white-space:nowrap; line-height:1;}
+  .auth-badge::before{content:""; width:7px; height:7px; border-radius:50%; background:currentColor; flex:none;}
+  .auth-badge.ok{background:color-mix(in srgb, var(--success) 16%, transparent); color:var(--success);}
+  .auth-badge.warn{background:color-mix(in srgb, var(--accent) 18%, transparent); color:var(--accent);}
+  .auth-badge.bad{background:color-mix(in srgb, var(--danger) 16%, transparent); color:var(--danger);}
+  .auth-badge.neutral{background:var(--surface-hover); color:var(--ink-soft); font-weight:600;}
+
   .dots-lg{gap:6px;}
   .dots-lg .dot{width:11px; height:11px;}
   @media(max-width:600px){
@@ -816,6 +825,8 @@
   .mont-mini .value{overflow-wrap:break-word;}
   .field-grid{display:grid; grid-template-columns:1fr 1fr; gap:0 28px;}
   .field-row.full{grid-column:1/-1;}
+  .field-section-title{grid-column:1/-1; font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-soft); font-weight:700; margin:20px 0 2px; padding-bottom:6px; border-bottom:1px solid var(--border);}
+  .field-section-title:first-child{margin-top:0;}
   @media(max-width:600px){.field-grid{grid-template-columns:1fr;}}
   .obj-mini-map{height:280px; margin:0 26px 24px; border-radius:var(--r-md); overflow:hidden; background:var(--surface-2); position:relative; isolation:isolate; border:1px solid var(--border);}
   @media(max-width:600px){.obj-mini-map{height:220px; margin:0 18px 20px;}}
@@ -1595,6 +1606,21 @@ function formatRichText(text){
 const raretePos = code => ({X:1,XX:2,XXX:3,XXXX:4,M:5}[code] || 0);
 // Génère les points de la pastille de rareté (1 à 5 points selon l'indice).
 function dotsHtml(pos){ let h=''; for(let i=1;i<=5;i++) h += `<span class="dot ${i<=pos?'on':''}"></span>`; return h; }
+
+// Badge visuel coloré pour le statut d'authenticité (vert = authentique,
+// orange = à nuancer/reproduction, rouge = faux, gris = non renseigné).
+const AUTH_BADGE_CLASS = {
+  'Authentique': 'ok',
+  'À vérifier': 'warn',
+  'Copie / Reproduction': 'warn',
+  'Refrappe': 'warn',
+  'Faux / Contrefaçon': 'bad'
+};
+function authBadgeHtml(authenticite){
+  if(!authenticite) return `<span class="auth-badge neutral">Authenticité non renseignée</span>`;
+  const cls = AUTH_BADGE_CLASS[authenticite] || 'neutral';
+  return `<span class="auth-badge ${cls}">${esc(authenticite)}</span>`;
+}
 
 let ALL_OBJETS = [];
 let PHOTOS_BY_OBJET = {};
@@ -2621,6 +2647,7 @@ function showFiche(uid){
           <div class="id">${esc(o.id_public)}</div>
           <h2>${esc(o.titre)}</h2>
           <div class="sec">${esc(o.region) || ''}</div>
+          <div style="margin-top:8px;">${authBadgeHtml(o.authenticite)}</div>
         </div>
         <div class="header-actions">
           <div class="rarity-pill"><span class="dots dots-lg">${dotsHtml(raretePos(o.indice_rarete))}</span></div>
@@ -2630,19 +2657,25 @@ function showFiche(uid){
       <div id="galleryWrap" style="margin:20px 26px 0;"></div>
       <div class="card-fields">
         <div class="field-grid">
+          <div class="field-section-title">Origine &amp; contexte</div>
           <div class="field-row"><div class="k">Région</div><div class="v">${esc(o.region) || '—'}</div></div>
           <div class="field-row"><div class="k">Département</div><div class="v">${esc(o.departement) || '—'}</div></div>
           <div class="field-row"><div class="k">Mouvement</div><div class="v">${esc(o.mouvement) || '—'}</div></div>
+
+          <div class="field-section-title">Caractéristiques physiques</div>
           <div class="field-row"><div class="k">Détails</div><div class="v">${esc(o.details) || '—'}</div></div>
           <div class="field-row"><div class="k">Taille</div><div class="v mono">${esc(o.taille) || '—'}</div></div>
           <div class="field-row"><div class="k">Fabricant</div><div class="v">${esc(o.fabricant) || '—'}</div></div>
+          <div class="field-row"><div class="k">Type de variante</div><div class="v">${esc(o.type_variante) || '—'}</div></div>
+          <div class="field-row"><div class="k">État de conservation</div><div class="v">${esc(o.etat_conservation) || '—'}</div></div>
+
+          <div class="field-section-title">Tirage &amp; fabrication</div>
           <div class="field-row"><div class="k">Type de tirage</div><div class="v">${esc(o.type_tirage) || '—'}</div></div>
           <div class="field-row"><div class="k">Quantité (tirage)</div><div class="v mono">${(o.quantite_tirage === undefined || o.quantite_tirage === null || o.quantite_tirage === '') ? '—' : esc(o.quantite_tirage)}</div></div>
           <div class="field-row"><div class="k">Détail tirage</div><div class="v">${esc(o.detail_tirage) || '—'}</div></div>
           <div class="field-row"><div class="k">Date de fabrication</div><div class="v mono">${o.date_fabrication ? new Date(o.date_fabrication).toLocaleDateString('fr-FR') : '—'}</div></div>
-          <div class="field-row"><div class="k">Type de variante</div><div class="v">${esc(o.type_variante) || '—'}</div></div>
-          <div class="field-row"><div class="k">Authenticité</div><div class="v">${esc(o.authenticite) || '—'}</div></div>
-          <div class="field-row"><div class="k">État de conservation</div><div class="v">${esc(o.etat_conservation) || '—'}</div></div>
+
+          <div class="field-section-title">Notes &amp; historique</div>
           <div class="field-row full"><div class="k">Notes</div><div class="v rich-text">${formatRichText(o.notes)}</div></div>
           <div class="field-row full"><div class="k">Infos / historique</div><div class="v rich-text">${formatRichText(o.infos)}</div></div>
         </div>
@@ -2956,13 +2989,6 @@ function fieldHtml(col, label, type, val, opts){
       : '';
     return `<div class="form-field full"><label>${esc(label)}</label><textarea id="f_${col}">${esc(v)}</textarea>${hint}</div>`;
   }
-  if(type==='datalist'){
-    const listId = 'dl_' + col;
-    return `<div class="form-field"><label>${esc(label)}</label>
-      <input id="f_${col}" type="text" list="${listId}" value="${esc(v)}" autocomplete="off">
-      <datalist id="${listId}">${(opts||[]).map(o=>`<option value="${esc(o)}"></option>`).join('')}</datalist>
-    </div>`;
-  }
   return `<div class="form-field"><label>${esc(label)}</label><input id="f_${col}" type="${type}" value="${esc(v)}"></div>`;
 }
 
@@ -2973,8 +2999,8 @@ function openForm(mode, objet){
   FORM_MODE = mode;
   FORM_UID = objet ? objet.uid : null;
   const o = objet || {};
-  const REGION_VALUES = [...new Set((typeof ALL_OBJETS !== 'undefined' ? ALL_OBJETS : []).map(x=>x.region).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'fr'));
-  const MOUVEMENT_VALUES = [...new Set((typeof ALL_OBJETS !== 'undefined' ? ALL_OBJETS : []).map(x=>x.mouvement).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'fr'));
+  const REGION_VALUES = [...new Set((typeof ALL_OBJETS !== 'undefined' ? ALL_OBJETS : []).map(x=>x.region).filter(Boolean).concat(o.region ? [o.region] : []))].sort((a,b)=>a.localeCompare(b,'fr'));
+  const MOUVEMENT_VALUES = [...new Set((typeof ALL_OBJETS !== 'undefined' ? ALL_OBJETS : []).map(x=>x.mouvement).filter(Boolean).concat(o.mouvement ? [o.mouvement] : []))].sort((a,b)=>a.localeCompare(b,'fr'));
   document.getElementById('formContent').innerHTML = `
     <div class="form-card">
       <h2>${mode==='edit' ? 'Modifier l’objet '+esc(o.id_public) : 'Nouvel objet'}</h2>
@@ -2984,9 +3010,9 @@ function openForm(mode, objet){
         <div class="form-grid">
           ${fieldHtml('type_objet',"Type d'objet",'select',o.type_objet,TYPE_OBJET_OPTIONS)}
           ${fieldHtml('titre','Titre','text',o.titre)}
-          ${fieldHtml('region','Région','datalist',o.region,REGION_VALUES)}
+          ${fieldHtml('region','Région','select',o.region,REGION_VALUES)}
           ${fieldHtml('departement','Département','text',o.departement)}
-          ${fieldHtml('mouvement','Mouvement','datalist',o.mouvement,MOUVEMENT_VALUES)}
+          ${fieldHtml('mouvement','Mouvement','select',o.mouvement,MOUVEMENT_VALUES)}
         </div>
       </div>
 
