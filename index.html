@@ -1370,11 +1370,12 @@ try{
       </section>
 
       <!-- Galerie : simple grille façon Instagram (tuiles carrées, taille
-           uniforme), une photo par objet (recto en priorité), ordre
-           randomisé à chaque ouverture de l'onglet ou clic sur "Mélanger".
-           Contenu généré par le script additif en bas de page (voir plus
-           bas) à partir de ALL_OBJETS / PHOTOS_BY_OBJET déjà chargés par le
-           script principal — aucune donnée ni requête dupliquée. -->
+           uniforme), une photo par objet (recto en priorité), ordre stable
+           par défaut (celui de la collection) — le mélange aléatoire n'a
+           lieu qu'au clic explicite sur "Mélanger". Contenu généré par le
+           script additif en bas de page (voir plus bas) à partir de
+           ALL_OBJETS / PHOTOS_BY_OBJET déjà chargés par le script
+           principal — aucune donnée ni requête dupliquée. -->
       <section class="view" id="view-galerie">
         <div class="gallery-header">
           <h2>Galerie</h2>
@@ -4583,25 +4584,33 @@ refreshAuthState().then(()=> loadAll()).then(()=> initFranceMap());
 })();
 
 // ============================================================
-// Galerie — grille aléatoire des objets (une photo par objet, recto en
-// priorité), inspirée de la grille de profil Instagram (tuiles carrées,
-// même taille, pas d'effet bento). Un clic sur une tuile ouvre la FICHE
-// complète de l'objet (via openFiche, la même navigation que depuis le
-// catalogue) — pas seulement un agrandissement de la photo. Réutilise
-// entièrement les données et fonctions déjà chargées par le script
-// principal (ALL_OBJETS, PHOTOS_BY_OBJET, scalewayPublicUrl, cachedImgTag,
-// hydrateCachedImages, esc, openFiche) — aucune requête ni logique
-// dupliquée. L'onglet "Galerie" (data-view="galerie") est traité de façon
-// 100% générique par le gestionnaire de clic existant sur #tabs et par
-// switchView(), donc rien à modifier de ce côté : ce script se contente
-// d'observer quand la vue
-// devient active pour (re)générer son contenu à ce moment-là.
+// Galerie — grille des objets (une photo par objet, recto en priorité),
+// inspirée de la grille de profil Instagram (tuiles carrées, même taille,
+// pas d'effet bento). Ordre STABLE par défaut (celui de la collection) ;
+// le mélange aléatoire n'a lieu qu'au clic explicite sur "Mélanger", et
+// cet ordre mélangé est conservé tant qu'on ne quitte pas la page (il ne
+// se remélange pas tout seul à chaque fois qu'on revient sur l'onglet).
+// Un clic sur une tuile ouvre la FICHE complète de l'objet (via openFiche,
+// la même navigation que depuis le catalogue) — pas seulement un
+// agrandissement de la photo. Réutilise entièrement les données et
+// fonctions déjà chargées par le script principal (ALL_OBJETS,
+// PHOTOS_BY_OBJET, scalewayPublicUrl, cachedImgTag, hydrateCachedImages,
+// esc, openFiche) — aucune requête ni logique dupliquée. L'onglet
+// "Galerie" (data-view="galerie") est traité de façon 100% générique par
+// le gestionnaire de clic existant sur #tabs et par switchView(), donc
+// rien à modifier de ce côté : ce script se contente d'observer quand la
+// vue devient active pour (re)générer son contenu à ce moment-là.
 // ============================================================
 (function(){
   const galleryView = document.getElementById('view-galerie');
   const galleryGrid = document.getElementById('igGallery');
   const shuffleBtn = document.getElementById('galerieShuffleBtn');
   if(!galleryView || !galleryGrid) return;
+
+  // Ordre courant conservé entre deux rendus (persiste tant que la page
+  // n'est pas rechargée), pour que revenir sur l'onglet Galerie ne
+  // remélange jamais tout seul l'agencement choisi par "Mélanger".
+  let currentOrder = null;
 
   // Mélange Fisher-Yates in place.
   function shuffle(arr){
@@ -4615,6 +4624,8 @@ refreshAuthState().then(()=> loadAll()).then(()=> initFranceMap());
   // Une entrée par objet possédant au moins une photo (recto en priorité,
   // sinon la première disponible) — jamais deux tuiles pour le même objet,
   // et les objets sans aucune photo n'apparaissent pas dans la galerie.
+  // Ordre naturel = celui de ALL_OBJETS (stable tant que la collection ne
+  // change pas), utilisé comme ordre par défaut de la galerie.
   function buildEntries(){
     const objets = (typeof ALL_OBJETS !== 'undefined' && Array.isArray(ALL_OBJETS)) ? ALL_OBJETS : [];
     const entries = [];
@@ -4627,8 +4638,7 @@ refreshAuthState().then(()=> loadAll()).then(()=> initFranceMap());
     return entries;
   }
 
-  function render(){
-    const entries = shuffle(buildEntries());
+  function renderEntries(entries){
     if(!entries.length){
       galleryGrid.innerHTML = '<div class="ig-empty">Aucune photo à afficher pour le moment.</div>';
       return;
@@ -4642,6 +4652,25 @@ refreshAuthState().then(()=> loadAll()).then(()=> initFranceMap());
     hydrateCachedImages(galleryGrid);
   }
 
+  // (Re)génère la mosaïque. Par défaut garde l'ordre déjà établi
+  // (currentOrder) en y répercutant les éventuels changements de données
+  // (nouveaux objets ajoutés à la fin, objets/photos supprimés retirés) ;
+  // avec forceShuffle=true (bouton "Mélanger"), retire un nouvel ordre
+  // aléatoire et le retient comme nouvel ordre courant.
+  function render(forceShuffle){
+    const fresh = buildEntries();
+    if(forceShuffle){
+      currentOrder = shuffle(fresh);
+    } else if(currentOrder){
+      const rank = new Map(currentOrder.map((e,i)=>[e.uid,i]));
+      fresh.sort((a,b) => (rank.has(a.uid) ? rank.get(a.uid) : Infinity) - (rank.has(b.uid) ? rank.get(b.uid) : Infinity));
+      currentOrder = fresh;
+    } else {
+      currentOrder = fresh; // premier rendu : ordre stable de la collection
+    }
+    renderEntries(currentOrder);
+  }
+
   // Clic sur une tuile -> fiche complète de l'objet (même navigation que
   // depuis le catalogue), pas seulement un agrandissement de la photo.
   galleryGrid.addEventListener('click', e=>{
@@ -4650,11 +4679,13 @@ refreshAuthState().then(()=> loadAll()).then(()=> initFranceMap());
     openFiche(tile.dataset.uid);
   });
 
-  if(shuffleBtn) shuffleBtn.addEventListener('click', render);
+  if(shuffleBtn) shuffleBtn.addEventListener('click', ()=> render(true));
 
   // (Re)génère la mosaïque à chaque fois que l'onglet devient actif (jamais
   // au chargement de la page tant qu'on ne l'a pas ouvert) : observé plutôt
   // que déclenché depuis switchView(), pour ne toucher à aucun code existant.
+  // render() sans argument ici : on ne force jamais un nouveau mélange en
+  // rouvrant simplement l'onglet, seul le bouton "Mélanger" le fait.
   let wasActive = false;
   new MutationObserver(()=>{
     const isActive = galleryView.classList.contains('active');
