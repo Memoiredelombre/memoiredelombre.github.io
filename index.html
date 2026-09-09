@@ -204,7 +204,6 @@
   /* ---------- Sidebar nav (nav.tabs est requis par le JS : nav.tabs button[...]) ---------- */
   nav.tabs{display:flex; flex-direction:column; gap:4px;}
   nav.tabs button.nav-item{background:none; border:1px solid transparent; cursor:pointer; text-align:left; font-size:13px; font-weight:500; font-family:'Space Grotesk',sans-serif; color:var(--ink-soft); padding:10px 12px; height:auto; display:flex; align-items:center; gap:10px; border-radius:var(--r-sm); position:relative; white-space:nowrap; transition:background .15s ease, color .15s ease, border-color .15s ease, transform .15s ease, box-shadow .2s ease;}
-  #ficheTabBtn.fiche-tab-visible{display:flex !important;}
   nav.tabs button.nav-item::before{content:""; position:absolute; left:-16px; top:50%; translate:0 -50%; width:3px; height:0; border-radius:0 3px 3px 0; background:var(--accent); box-shadow:var(--glow); transition:height .15s ease;}
   nav.tabs button.nav-item .ico{width:16px; height:16px; flex:none; display:flex; align-items:center; justify-content:center; opacity:.75;}
   nav.tabs button.nav-item .ico svg{width:100%; height:100%;}
@@ -926,7 +925,10 @@ try{
              (getElementById('view-'+name)) — aucune modification du script
              principal nécessaire pour que cet onglet fonctionne. -->
         <button class="nav-item" data-view="galerie" id="galerieTabBtn"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></span><span class="label-text">Galerie</span></button>
-        <button class="nav-item" data-view="fiche" id="ficheTabBtn" style="display:none;"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h7l5 5v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h6"/></svg></span><span class="label-text">Fiche</span></button>
+        <!-- Pas d'onglet "Fiche" dans ce menu : une fiche d'objet n'est pas une
+             section de premier niveau, on y arrive toujours depuis le catalogue,
+             la galerie ou le tableau de bord, et le bouton "Retour" de la fiche
+             (#backBtn) suffit pour en repartir. -->
       </nav>
     </div>
 
@@ -3093,8 +3095,9 @@ function switchView(name){
   document.querySelectorAll('nav.tabs button').forEach(b=>b.classList.remove('active'));
   const btn = document.querySelector(`nav.tabs button[data-view="${name}"]`);
   if(btn) btn.classList.add('active');
-  const ficheBtn = document.getElementById('ficheTabBtn');
-  if(name==='fiche'){ ficheBtn.style.display='inline-block'; ficheBtn.classList.add('active'); }
+  // Pas de bouton nav.tabs pour "fiche" (retiré du menu — voir HTML) : aucun
+  // onglet ne reste donc mis en surbrillance pendant la consultation d'une
+  // fiche, intentionnel.
   // En quittant le catalogue par un autre chemin que le bouton lui-même (onglet, retour...),
   // on referme visuellement le panneau et on désélectionne le bouton pour rester cohérent.
   if(name !== 'catalogue'){
@@ -3110,10 +3113,6 @@ document.getElementById('tabs').addEventListener('click', e=>{
   if(!btn) return;
   const view = btn.dataset.view;
   if(!view) return; // sécurité : ignore tout bouton sans data-view (ex: un bouton non-onglet cliqué à l'intérieur de la nav)
-  if(view==='fiche'){
-    if(CURRENT_FICHE_UID) openFiche(CURRENT_FICHE_UID);
-    return;
-  }
   switchView(view);
   pushNav(view, null);
   if(view==='dashboard' && franceMap) setTimeout(()=> franceMap.invalidateSize(), 50);
@@ -3332,28 +3331,6 @@ refreshAuthState().then(()=> loadAll()).then(()=> initFranceMap());
   window.addEventListener('resize', ()=>{
     if(!isMobile()) body.classList.remove('sidebar-open');
   });
-})();
-
-// ============================================================
-// Onglet "Fiche" — le script principal le montre/cache en changeant son
-// style inline (display:none ↔ display:inline-block), jamais en posant une
-// classe. On observe ce style inline et on pose/enlève .fiche-tab-visible en
-// miroir : la règle CSS #ficheTabBtn.fiche-tab-visible{display:flex!important}
-// (voir plus haut) ne force donc le flex que quand le bouton est réellement
-// affiché (un objet a été consulté), sans jamais interférer avec le
-// display:none initial — sinon l'onglet resterait visible en permanence,
-// même sans avoir ouvert de fiche.
-// ============================================================
-(function(){
-  const ficheTabBtn = document.getElementById('ficheTabBtn');
-  if(!ficheTabBtn) return;
-
-  function syncFicheTabVisibility(){
-    ficheTabBtn.classList.toggle('fiche-tab-visible', ficheTabBtn.style.display !== 'none');
-  }
-
-  syncFicheTabVisibility();
-  new MutationObserver(syncFicheTabVisibility).observe(ficheTabBtn, { attributes: true, attributeFilter: ['style'] });
 })();
 
 // ============================================================
