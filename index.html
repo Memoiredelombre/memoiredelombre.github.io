@@ -1396,7 +1396,7 @@ try{
         <div id="formContent"></div>
       </section>
 
-      <div class="foot-note">Connecté à votre base Supabase — 🔒 = champ toujours privé, jamais partagé</div>
+      <div class="foot-note">Connecté à votre base Supabase</div>
       <div class="foot-note">© <span id="footYear"></span> Mémoire de l'Ombre</div>
     </div>
   </div>
@@ -1893,7 +1893,7 @@ function renderActiviteRecente(){
     const score = (filled + (hasPhoto?1:0)) / (fields.length + 1);
     return { o, score, missingPhoto: !hasPhoto };
   });
-  const incomplete = withScore.filter(x => x.score < 1).sort((a,b)=> a.score - b.score).slice(0,8);
+  const incomplete = withScore.filter(x => x.score < 1).sort((a,b)=> a.score - b.score).slice(0,20);
 
   document.getElementById('activiteRecente').innerHTML = incomplete.map(({o, score, missingPhoto})=>`
     <a class="rv-activity-row" href="?obj=${o.uid}" data-uid="${o.uid}">
@@ -2049,7 +2049,7 @@ function renderDepartementChart(){
   }
   const max = Math.max(1, ...entries.map(([,n])=>n));
   document.getElementById('departementList').innerHTML = entries.map(([p,n])=>`
-    <div class="prov-row">
+    <div class="prov-row clickable-stat" onclick="navigateToFilteredCatalogue({query:'${p.replace(/'/g,"\\'")}'})">
       <div class="pl" style="width:170px;" title="${esc(p)}">${esc(p)}</div>
       <div class="prov-track"><div class="prov-fill" style="width:${(n/max*100).toFixed(0)}%"></div></div>
       <div class="prov-n">${n}</div>
@@ -2148,9 +2148,9 @@ function renderTypeDonut(){
   `;
 }
 
-// Bloc "Derniers ajoutés" du dashboard (10 objets les plus récents).
+// Bloc "Derniers ajoutés" du dashboard (20 objets les plus récents).
 function renderDerniersAjoutes(){
-  const sorted = [...ALL_OBJETS].filter(o=>o.created_at).sort((a,b)=> new Date(b.created_at)-new Date(a.created_at)).slice(0,10);
+  const sorted = [...ALL_OBJETS].filter(o=>o.created_at).sort((a,b)=> new Date(b.created_at)-new Date(a.created_at)).slice(0,20);
   document.getElementById('derniersList').innerHTML = sorted.map(o=>{
     const shots = PHOTOS_BY_OBJET[o.uid] || [];
     const recto = shots.find(s=>s.label==='Recto') || shots[0];
@@ -2267,7 +2267,7 @@ function renderFabricantChart(){
   }
   const max = Math.max(1, ...entries.map(([,n])=>n));
   document.getElementById('fabricantList').innerHTML = entries.map(([p,n])=>`
-    <div class="prov-row">
+    <div class="prov-row clickable-stat" onclick="navigateToFilteredCatalogue({query:'${p.replace(/'/g,"\\'")}'})">
       <div class="pl" style="width:170px;" title="${esc(p)}">${esc(p)}</div>
       <div class="prov-track"><div class="prov-fill" style="width:${(n/max*100).toFixed(0)}%"></div></div>
       <div class="prov-n">${n}</div>
@@ -2431,7 +2431,7 @@ function navigateToFilteredCatalogue(opts){
 
   ACTIVE_DEPT_FILTER = null;
   renderDeptFilterTag();
-  document.getElementById('searchInput').value = '';
+  document.getElementById('searchInput').value = opts.query || '';
 
   document.querySelectorAll('.chip[data-filter]').forEach(c=>c.classList.toggle('active', c.dataset.filter === (opts.type || 'Tous')));
 
@@ -2451,7 +2451,7 @@ function navigateToFilteredCatalogue(opts){
   renderQuickDateFilterTag();
 
   LAST_CAT_FILTER = opts.type || 'Tous';
-  LAST_CAT_QUERY = '';
+  LAST_CAT_QUERY = opts.query || '';
 
   // Ouvre le panneau de recherche combinée si un critère avancé est actif, pour que
   // le filtre appliqué reste visible plutôt que de rester "caché" derrière le bouton.
@@ -2465,7 +2465,7 @@ function navigateToFilteredCatalogue(opts){
     advBtn.classList.remove('active');
   }
 
-  renderGrid(LAST_CAT_FILTER, '');
+  renderGrid(LAST_CAT_FILTER, opts.query || '');
   window.scrollTo({top: 0, behavior: 'instant'});
 }
 
