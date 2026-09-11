@@ -651,6 +651,31 @@
   .ig-tile-caption{position:absolute; left:0; right:0; bottom:0; padding:18px 10px 8px; font-size:11.5px; font-weight:600; color:#fff; background:linear-gradient(0deg, rgba(0,0,0,.72), transparent); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
   .ig-empty{grid-column:1/-1; text-align:center; padding:60px 20px; color:var(--ink-faint); font-size:13.5px;}
 
+  /* ---------- Liste de souhaits ---------- */
+  .wishlist-header{display:flex; align-items:center; justify-content:space-between; gap:14px; margin-bottom:16px; flex-wrap:wrap;}
+  .wishlist-header h2{font-family:'Space Grotesk',sans-serif; font-size:21px; font-weight:500; margin:0;}
+  .wishlist-budget-total{flex:1 1 auto; text-align:right; font-size:12.5px; color:var(--ink-soft); min-width:180px;}
+  .wishlist-budget-total b{color:var(--ink); font-family:'IBM Plex Mono',monospace;}
+  .wishlist-toolbar{display:flex; gap:8px; margin-bottom:18px;}
+  .wishlist-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:16px;}
+  .wish-card{background:var(--surface); border:1px solid var(--border); border-radius:var(--r-md); padding:16px; display:flex; flex-direction:column; gap:8px; transition:box-shadow .2s ease, border-color .2s ease;}
+  .wish-card:hover{box-shadow:var(--shadow-md);}
+  .wish-card.wish-found{opacity:.6;}
+  .wish-card-top{display:flex; align-items:center; gap:8px; flex-wrap:wrap;}
+  .wish-prio{font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; padding:2px 9px; border-radius:20px; background:var(--surface-2); color:var(--ink-soft); border:1px solid var(--border);}
+  .wish-prio-haute{color:var(--private); border-color:color-mix(in srgb, var(--private) 45%, var(--border));}
+  .wish-prio-moyenne{color:var(--accent); border-color:color-mix(in srgb, var(--accent) 45%, var(--border));}
+  .wish-type{font-size:11.5px; color:var(--ink-faint);}
+  .wish-titre{font-family:'Space Grotesk',sans-serif; font-size:15.5px; font-weight:500; line-height:1.3;}
+  .wish-found .wish-titre{text-decoration:line-through;}
+  .wish-budget{font-size:12.5px; color:var(--ink-soft);}
+  .wish-budget b{color:var(--ink); font-family:'IBM Plex Mono',monospace;}
+  .wish-piste, .wish-notes{font-size:12px; color:var(--ink-soft); line-height:1.4;}
+  .wish-actions{display:flex; gap:6px; margin-top:6px; flex-wrap:wrap;}
+  .wish-actions .btn{height:32px; padding:0 12px; font-size:12px;}
+  .wish-actions .btn.icon-btn{width:32px; padding:0;}
+  .wish-modal{max-width:420px;}
+
   /* ---------- Modals ---------- */
   .modal-overlay{position:fixed; inset:0; background:rgba(5,4,2,.68); backdrop-filter:blur(6px); z-index:300; display:flex; align-items:center; justify-content:center; padding:20px;}
   .modal-box{background:var(--surface); border:1px solid var(--border); border-radius:var(--r-lg); padding:26px; width:100%; max-width:340px; max-height:calc(100vh - 40px); overflow-y:auto; box-sizing:border-box; box-shadow:var(--shadow-md);}
@@ -929,6 +954,12 @@ try{
              carrés : trop proche visuellement de l'icône du Tableau de bord
              (elle-même une grille de rectangles), les deux se confondaient. -->
         <button class="nav-item" data-view="galerie" id="galerieTabBtn"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.6"/><path d="m21 15-5-5-9 9"/></svg></span><span class="label-text">Galerie</span></button>
+        <!-- Onglet "Souhaits" : réservé à l'admin (masqué/affiché dans
+             applyAuthUI(), même principe que #newObjetBtn), data-view="wishlist"
+             traité de façon 100% générique par le gestionnaire de clic
+             existant sur #tabs et par switchView() — aucune modification du
+             script principal nécessaire pour que cet onglet fonctionne. -->
+        <button class="nav-item" data-view="wishlist" id="wishlistTabBtn" style="display:none;"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17.3 6.2 21l1.6-6.6L2.5 9.8l6.8-.6L12 3l2.7 6.2 6.8.6-5.3 4.6 1.6 6.6z"/></svg></span><span class="label-text">Souhaits</span></button>
         <!-- Pas d'onglet "Fiche" dans ce menu : une fiche d'objet n'est pas une
              section de premier niveau, on y arrive toujours depuis le catalogue,
              la galerie ou le tableau de bord, et le bouton "Retour" de la fiche
@@ -1144,6 +1175,26 @@ try{
           <div class="modal-actions">
             <button class="btn btn-secondary" id="genericConfirmCancelBtn">Annuler</button>
             <button class="btn btn-danger" id="genericConfirmOkBtn">Confirmer</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Ajout/modification d'un souhait — modale (même principe que
+           #settingsModal ci-dessus), remplie/vidée par openWishModal() dans
+           le script additif en bas de page. -->
+      <div id="wishModal" class="modal-overlay" style="display:none;">
+        <div class="modal-box wish-modal">
+          <h3 id="wishModalTitle">Nouveau souhait</h3>
+          <div class="form-field"><label>Titre / description</label><input type="text" id="wf_titre" placeholder="ex : Insigne du réseau Buckmaster"></div>
+          <div class="form-field"><label>Type d'objet</label><select id="wf_type_objet"><option value="">—</option></select></div>
+          <div class="form-field"><label>Priorité</label><select id="wf_priorite"><option value="Haute">Haute</option><option value="Moyenne" selected>Moyenne</option><option value="Basse">Basse</option></select></div>
+          <div class="form-field"><label>🔒 Budget cible (€)</label><input type="number" id="wf_budget" step="0.01" min="0" placeholder="ex : 150"></div>
+          <div class="form-field"><label>Piste / lien</label><input type="text" id="wf_piste" placeholder="ex : vu sur Delcampe, contact d'un collectionneur…"></div>
+          <div class="form-field"><label>Notes</label><textarea id="wf_notes" rows="3"></textarea></div>
+          <div class="form-msg" id="wishFormMsg"></div>
+          <div class="modal-actions">
+            <button class="btn btn-secondary" id="wishCancelBtn" type="button">Annuler</button>
+            <button class="btn btn-primary" id="wishSaveBtn" type="button">Enregistrer</button>
           </div>
         </div>
       </div>
@@ -1386,6 +1437,25 @@ try{
         <div class="ig-gallery" id="igGallery"></div>
       </section>
 
+      <!-- Liste de souhaits : pièces recherchées mais pas encore acquises,
+           table Supabase séparée ("wishlist", voir wishlist_supabase.sql)
+           pour ne jamais fausser les totaux de la collection (objets)
+           affichés sur le tableau de bord. Réservée à l'admin (budget cible
+           = donnée privée). Chargée à la demande (premier clic sur l'onglet),
+           voir loadWishlist() dans le script additif en bas de page. -->
+      <section class="view" id="view-wishlist">
+        <div class="wishlist-header">
+          <h2>Liste de souhaits</h2>
+          <div class="wishlist-budget-total" id="wishlistBudgetTotal"></div>
+          <button class="btn btn-primary" id="newWishBtn" type="button">+ Nouveau souhait</button>
+        </div>
+        <div class="wishlist-toolbar">
+          <span class="chip active" data-wish-filter="actif">À rechercher</span>
+          <span class="chip" data-wish-filter="trouve">Trouvés</span>
+        </div>
+        <div class="wishlist-grid" id="wishlistGrid"><div class="state-msg">Chargement…</div></div>
+      </section>
+
       <section class="view" id="view-fiche">
         <button class="fiche-back" id="backBtn">← Retour au catalogue</button>
         <div id="ficheContent"></div>
@@ -1457,6 +1527,13 @@ function applyAuthUI(){
   document.getElementById('privacyToggleBtn').style.display = IS_ADMIN ? 'inline-flex' : 'none';
   document.body.classList.toggle('privacy-on', !IS_ADMIN);
   document.body.classList.toggle('guest-mode', !IS_ADMIN);
+  // Onglet "Souhaits" réservé à l'admin (budget cible = donnée privée) ; si
+  // un invité se retrouve sur cette vue (déconnexion pendant qu'elle est
+  // active), on le ramène au catalogue plutôt que de laisser une vue admin
+  // affichée sans nav active dessus.
+  const wishlistTabBtn = document.getElementById('wishlistTabBtn');
+  if(wishlistTabBtn) wishlistTabBtn.style.display = IS_ADMIN ? '' : 'none';
+  if(!IS_ADMIN && document.getElementById('view-wishlist')?.classList.contains('active')) switchView('catalogue');
   if(IS_ADMIN){
     authStatus.textContent = '● Admin';
     authStatus.style.color = 'var(--accent, #2e3a55)';
@@ -4786,6 +4863,216 @@ refreshAuthState().then(()=> loadAll()).then(()=> initFranceMap());
   // Resynchronise l'icône avec l'état réel du body (déjà positionné par
   // le script inline anti-FOUC avant le rendu principal).
   darkModeBtn.textContent = document.body.classList.contains('dark') ? '☀️' : '🌙';
+})();
+
+// ============================================================
+// Liste de souhaits (onglet "Souhaits", admin uniquement)
+// ============================================================
+// Table Supabase séparée ("wishlist", voir wishlist_supabase.sql fourni à
+// part) : des pièces RECHERCHÉES, pas encore possédées, ne doivent jamais
+// se mélanger à ALL_OBJETS (ça fausserait les totaux/KPI du tableau de
+// bord). Chargée à la demande, au premier clic sur l'onglet — pas dans
+// loadAll() du script principal, pour rester 100% additif et ne rien
+// changer au chargement initial existant.
+let ALL_WISHLIST = [];
+let WISHLIST_LOADED = false;
+let WISH_EDIT_ID = null; // null = création, sinon id du souhait en cours de modification
+let WISH_FILTER = 'actif'; // 'actif' (à rechercher) | 'trouve'
+
+async function loadWishlist(){
+  const grid = document.getElementById('wishlistGrid');
+  if(grid) grid.innerHTML = '<div class="state-msg">Chargement…</div>';
+  const { data, error } = await sb.from('wishlist').select().order('created_at', { ascending:false });
+  if(error){
+    if(grid) grid.innerHTML = '<div class="state-msg">Impossible de charger la liste de souhaits pour le moment.</div>';
+    return;
+  }
+  ALL_WISHLIST = data || [];
+  WISHLIST_LOADED = true;
+  renderWishlist();
+}
+
+function renderWishlist(){
+  const grid = document.getElementById('wishlistGrid');
+  if(!grid) return;
+  const items = ALL_WISHLIST.filter(w => WISH_FILTER==='trouve' ? w.statut==='Trouvé' : w.statut!=='Trouvé');
+  const totalBudget = ALL_WISHLIST
+    .filter(w => w.statut!=='Trouvé' && w.budget_cible!=null)
+    .reduce((s,w)=> s + Number(w.budget_cible), 0);
+  const totalEl = document.getElementById('wishlistBudgetTotal');
+  if(totalEl) totalEl.innerHTML = totalBudget > 0 ? `🔒 Budget cible cumulé (à rechercher) : <b>${EUR(totalBudget)}</b>` : '';
+  if(!items.length){
+    grid.innerHTML = `<div class="state-msg">${WISH_FILTER==='trouve' ? 'Aucun souhait marqué comme trouvé pour le moment.' : "Aucun souhait pour le moment — ajoutez la première pièce que vous recherchez."}</div>`;
+    return;
+  }
+  grid.innerHTML = items.map(wishCardHtml).join('');
+}
+
+function wishCardHtml(w){
+  const prio = w.priorite || 'Moyenne';
+  const prioClass = prio==='Haute' ? 'haute' : prio==='Basse' ? 'basse' : 'moyenne';
+  const isFound = w.statut === 'Trouvé';
+  return `
+    <div class="wish-card ${isFound?'wish-found':''}" data-wish-id="${esc(w.id)}">
+      <div class="wish-card-top">
+        <span class="wish-prio wish-prio-${prioClass}">${esc(prio)}</span>
+        ${w.type_objet ? `<span class="wish-type">${esc(w.type_objet)}</span>` : ''}
+      </div>
+      <div class="wish-titre">${esc(w.titre)}</div>
+      ${w.budget_cible != null ? `<div class="wish-budget">🔒 Budget cible : <b>${EUR(w.budget_cible)}</b></div>` : ''}
+      ${w.piste ? `<div class="wish-piste">${esc(w.piste)}</div>` : ''}
+      ${w.notes ? `<div class="wish-notes">${esc(w.notes)}</div>` : ''}
+      <div class="wish-actions">
+        ${isFound
+          ? `<button class="btn btn-secondary" data-wish-action="revert" type="button">↺ Remettre en recherche</button>`
+          : `<button class="btn btn-primary" data-wish-action="found" type="button">✓ Trouvé — créer l'objet</button>`
+        }
+        <button class="btn btn-secondary icon-btn" data-wish-action="edit" type="button" title="Modifier">✎</button>
+        <button class="btn btn-secondary icon-btn" data-wish-action="delete" type="button" title="Supprimer">🗑</button>
+      </div>
+    </div>
+  `;
+}
+
+// Bascule le statut d'un souhait (utilisé pour "Remettre en recherche").
+async function toggleWishStatut(id, statut){
+  await sb.from('wishlist').update({ statut }).eq('id', id);
+  await loadWishlist();
+}
+
+// Marque un souhait comme trouvé puis ouvre directement "Nouvel objet"
+// pré-rempli (titre + type) pour éviter de ressaisir l'essentiel — le
+// mode reste 'create' (insertion), openForm() ne s'appuie que sur
+// FORM_MODE==='edit' pour distinguer update/insert, pas sur la présence
+// d'un uid dans l'objet passé.
+async function markWishFoundAndCreate(w){
+  await sb.from('wishlist').update({ statut:'Trouvé' }).eq('id', w.id);
+  await loadWishlist();
+  openForm('create', { titre: w.titre, type_objet: w.type_objet });
+}
+
+async function handleDeleteWish(id){
+  if(!await window.askGenericConfirm('Supprimer ce souhait ?', 'Supprimer')) return;
+  await sb.from('wishlist').delete().eq('id', id);
+  await loadWishlist();
+}
+
+// Remplit/vide la modale d'ajout-modification. w=null -> création.
+function openWishModal(w){
+  WISH_EDIT_ID = w ? w.id : null;
+  document.getElementById('wishModalTitle').textContent = w ? 'Modifier le souhait' : 'Nouveau souhait';
+  document.getElementById('wf_titre').value = w ? (w.titre||'') : '';
+  document.getElementById('wf_type_objet').value = w ? (w.type_objet||'') : '';
+  document.getElementById('wf_priorite').value = w ? (w.priorite||'Moyenne') : 'Moyenne';
+  document.getElementById('wf_budget').value = (w && w.budget_cible != null) ? w.budget_cible : '';
+  document.getElementById('wf_piste').value = w ? (w.piste||'') : '';
+  document.getElementById('wf_notes').value = w ? (w.notes||'') : '';
+  document.getElementById('wishFormMsg').textContent = '';
+  document.getElementById('wishModal').style.display = 'flex';
+}
+function closeWishModal(){
+  document.getElementById('wishModal').style.display = 'none';
+}
+
+async function saveWish(){
+  const payload = {
+    titre: document.getElementById('wf_titre').value.trim(),
+    type_objet: document.getElementById('wf_type_objet').value || null,
+    priorite: document.getElementById('wf_priorite').value || 'Moyenne',
+    budget_cible: document.getElementById('wf_budget').value !== '' ? parseFloat(document.getElementById('wf_budget').value) : null,
+    piste: document.getElementById('wf_piste').value.trim() || null,
+    notes: document.getElementById('wf_notes').value.trim() || null,
+  };
+  if(!payload.titre){
+    const msg = document.getElementById('wishFormMsg');
+    msg.textContent = 'Le titre est obligatoire.';
+    msg.classList.add('error');
+    return;
+  }
+  const saveBtn = document.getElementById('wishSaveBtn');
+  saveBtn.disabled = true;
+  const { error } = WISH_EDIT_ID
+    ? await sb.from('wishlist').update(payload).eq('id', WISH_EDIT_ID)
+    : await sb.from('wishlist').insert(payload);
+  saveBtn.disabled = false;
+  if(error){
+    const msg = document.getElementById('wishFormMsg');
+    msg.textContent = 'Erreur : ' + error.message;
+    msg.classList.add('error');
+    return;
+  }
+  closeWishModal();
+  await loadWishlist();
+}
+
+(function wireWishlist(){
+  // Options du select "Type d'objet" : réutilise TYPE_OBJET_OPTIONS déjà
+  // défini dans le script principal, pour rester en phase avec le catalogue.
+  const typeSelect = document.getElementById('wf_type_objet');
+  if(typeSelect && typeof TYPE_OBJET_OPTIONS !== 'undefined'){
+    TYPE_OBJET_OPTIONS.forEach(t=>{
+      const opt = document.createElement('option');
+      opt.value = t; opt.textContent = t;
+      typeSelect.appendChild(opt);
+    });
+  }
+
+  // Chargement à la demande, au premier clic sur l'onglet (écouteur
+  // additionnel sur #tabs, en plus du gestionnaire générique déjà en place
+  // pour switchView()).
+  const tabsEl = document.getElementById('tabs');
+  if(tabsEl){
+    tabsEl.addEventListener('click', e=>{
+      const btn = e.target.closest('button[data-view="wishlist"]');
+      if(btn && !WISHLIST_LOADED) loadWishlist();
+    });
+  }
+
+  const newWishBtn = document.getElementById('newWishBtn');
+  if(newWishBtn) newWishBtn.addEventListener('click', ()=> openWishModal(null));
+
+  const cancelBtn = document.getElementById('wishCancelBtn');
+  if(cancelBtn) cancelBtn.addEventListener('click', closeWishModal);
+
+  const saveBtn = document.getElementById('wishSaveBtn');
+  if(saveBtn) saveBtn.addEventListener('click', saveWish);
+
+  const modal = document.getElementById('wishModal');
+  if(modal){
+    modal.addEventListener('click', e=>{ if(e.target === modal) closeWishModal(); });
+    document.addEventListener('keydown', e=>{ if(e.key==='Escape' && modal.style.display==='flex') closeWishModal(); });
+  }
+
+  // Filtres "À rechercher" / "Trouvés" — data-wish-filter (et non
+  // data-filter) pour ne pas être capté par le sélecteur générique
+  // .chip[data-filter] déjà utilisé par le catalogue.
+  document.querySelectorAll('#view-wishlist .chip[data-wish-filter]').forEach(chip=>{
+    chip.addEventListener('click', ()=>{
+      document.querySelectorAll('#view-wishlist .chip[data-wish-filter]').forEach(c=>c.classList.remove('active'));
+      chip.classList.add('active');
+      WISH_FILTER = chip.dataset.wishFilter;
+      renderWishlist();
+    });
+  });
+
+  // Actions sur une carte (délégation d'événement, une seule écoute pour
+  // toute la grille plutôt qu'un onclick par bouton).
+  const grid = document.getElementById('wishlistGrid');
+  if(grid){
+    grid.addEventListener('click', e=>{
+      const actionBtn = e.target.closest('[data-wish-action]');
+      if(!actionBtn) return;
+      const card = actionBtn.closest('[data-wish-id]');
+      if(!card) return;
+      const w = ALL_WISHLIST.find(x => String(x.id) === card.dataset.wishId);
+      if(!w) return;
+      const action = actionBtn.dataset.wishAction;
+      if(action==='found') markWishFoundAndCreate(w);
+      else if(action==='revert') toggleWishStatut(w.id, 'Recherché');
+      else if(action==='edit') openWishModal(w);
+      else if(action==='delete') handleDeleteWish(w.id);
+    });
+  }
 })();
 </script>
 </body>
