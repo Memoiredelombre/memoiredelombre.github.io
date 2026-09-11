@@ -658,9 +658,11 @@
   .wishlist-budget-total b{color:var(--ink); font-family:'IBM Plex Mono',monospace;}
   .wishlist-toolbar{display:flex; gap:8px; margin-bottom:18px;}
   .wishlist-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:16px;}
-  .wish-card{background:var(--surface); border:1px solid var(--border); border-radius:var(--r-md); padding:16px; display:flex; flex-direction:column; gap:8px; transition:box-shadow .2s ease, border-color .2s ease;}
+  .wish-card{background:var(--surface); border:1px solid var(--border); border-radius:var(--r-md); padding:16px; display:flex; flex-direction:column; gap:8px; transition:box-shadow .2s ease, border-color .2s ease; overflow:hidden;}
   .wish-card:hover{box-shadow:var(--shadow-md);}
   .wish-card.wish-found{opacity:.6;}
+  .wish-thumb{aspect-ratio:16/10; border-radius:var(--r-sm); overflow:hidden; margin:-16px -16px 0; background:var(--surface-2); cursor:pointer;}
+  .wish-thumb img{width:100%; height:100%; object-fit:cover; display:block;}
   .wish-card-top{display:flex; align-items:center; gap:8px; flex-wrap:wrap;}
   .wish-prio{font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; padding:2px 9px; border-radius:20px; background:var(--surface-2); color:var(--ink-soft); border:1px solid var(--border);}
   .wish-prio-haute{color:var(--private); border-color:color-mix(in srgb, var(--private) 45%, var(--border));}
@@ -674,10 +676,19 @@
   .wish-actions{display:flex; gap:6px; margin-top:6px; flex-wrap:wrap;}
   .wish-actions .btn{height:32px; padding:0 12px; font-size:12px;}
   .wish-actions .btn.icon-btn{width:32px; padding:0;}
-  .wish-modal{max-width:420px;}
+  .wish-modal{max-width:480px;}
+  .wish-photo-section label{display:block; font-size:11px; color:var(--ink-soft); margin-bottom:8px; font-weight:500;}
+  #wishPhotoHint{margin-bottom:14px;}
 
   /* ---------- Modals ---------- */
   .modal-overlay{position:fixed; inset:0; background:rgba(5,4,2,.68); backdrop-filter:blur(6px); z-index:300; display:flex; align-items:center; justify-content:center; padding:20px;}
+  /* La confirmation générique (#genericConfirmModal) peut s'ouvrir PAR-DESSUS
+     une autre modale déjà ouverte (ex. supprimer une photo depuis la modale
+     souhait) : comme elle partage la classe .modal-overlay (z-index:300),
+     l'ordre d'empilement dépendait sinon de l'ordre dans le DOM et pouvait
+     la faire passer dessous une modale apparue plus tard — son bouton
+     devenait alors incliquable. z-index dédié pour toujours rester au-dessus. */
+  #genericConfirmModal{z-index:350;}
   .modal-box{background:var(--surface); border:1px solid var(--border); border-radius:var(--r-lg); padding:26px; width:100%; max-width:340px; max-height:calc(100vh - 40px); overflow-y:auto; box-sizing:border-box; box-shadow:var(--shadow-md);}
   .modal-box h3{margin:0 0 18px; font-family:'Space Grotesk',sans-serif; font-size:18px; font-weight:600;}
   .modal-box .form-field{margin-bottom:14px;}
@@ -876,7 +887,12 @@
   .photo-tile.small .lbl-tag{font-size:10px; padding:1px 6px;}
 
   /* ---------- Lightbox ---------- */
-  #lightbox{position:fixed; inset:0; background:rgba(3,3,2,.94); display:none; align-items:center; justify-content:center; z-index:200; cursor:zoom-out; padding:40px;}
+  /* z-index 400 (au-dessus de .modal-overlay=300) : le lightbox peut
+     désormais s'ouvrir depuis les photos d'un souhait, gérées dans une
+     modale (contrairement aux photos d'un objet, gérées sur sa fiche
+     plein écran, jamais sous une modale) — sans ce changement il
+     s'affichait sous la modale, inutilisable. */
+  #lightbox{position:fixed; inset:0; background:rgba(3,3,2,.94); display:none; align-items:center; justify-content:center; z-index:400; cursor:zoom-out; padding:40px;}
   #lightbox.active{display:flex;}
   #lightbox.zoomed-scroll{overflow:auto; align-items:flex-start; justify-content:flex-start;}
   #lightbox img{max-width:100%; max-height:100%; border-radius:8px; box-shadow:0 20px 60px rgba(0,0,0,.6); cursor:zoom-in;}
@@ -1191,6 +1207,17 @@ try{
           <div class="form-field"><label>🔒 Budget cible (€)</label><input type="number" id="wf_budget" step="0.01" min="0" placeholder="ex : 150"></div>
           <div class="form-field"><label>Piste / lien</label><input type="text" id="wf_piste" placeholder="ex : vu sur Delcampe, contact d'un collectionneur…"></div>
           <div class="form-field"><label>Notes</label><textarea id="wf_notes" rows="3"></textarea></div>
+          <!-- Photos (Recto/Verso + supplémentaires) : même structure et mêmes
+               fonctions (compression WebP, cache navigateur, envoi Scaleway)
+               que la fiche d'un objet — voir renderWishPhotoGallery() dans le
+               script additif en bas de page. Nécessite un id de souhait déjà
+               enregistré, donc masqué à la création tant que rien n'a encore
+               été sauvegardé une première fois. -->
+          <div class="wish-photo-section" id="wishPhotoSection" style="display:none;">
+            <label>Photos</label>
+            <div id="wishPhotoGalleryWrap"></div>
+          </div>
+          <div class="form-msg" id="wishPhotoHint">Enregistrez d'abord ce souhait pour pouvoir y ajouter des photos.</div>
           <div class="form-msg" id="wishFormMsg"></div>
           <div class="modal-actions">
             <button class="btn btn-secondary" id="wishCancelBtn" type="button">Annuler</button>
@@ -4882,7 +4909,11 @@ let WISH_FILTER = 'actif'; // 'actif' (à rechercher) | 'trouve'
 async function loadWishlist(){
   const grid = document.getElementById('wishlistGrid');
   if(grid) grid.innerHTML = '<div class="state-msg">Chargement…</div>';
-  const { data, error } = await sb.from('wishlist').select().order('created_at', { ascending:false });
+  const [wishResult] = await Promise.all([
+    sb.from('wishlist').select().order('created_at', { ascending:false }),
+    refreshWishPhotosCache()
+  ]);
+  const { data, error } = wishResult;
   if(error){
     if(grid) grid.innerHTML = '<div class="state-msg">Impossible de charger la liste de souhaits pour le moment.</div>';
     return;
@@ -4906,6 +4937,17 @@ function renderWishlist(){
     return;
   }
   grid.innerHTML = items.map(wishCardHtml).join('');
+  hydrateCachedImages(grid);
+}
+
+// Vignette de couverture (photo "Recto", ou à défaut la première photo
+// disponible) — même principe que thumbListHtml() du catalogue.
+function wishThumbHtml(w){
+  const shots = WISHLIST_PHOTOS_BY_ID[w.id] || [];
+  const match = shots.find(s=>s.label==='Recto') || shots[0];
+  if(!match) return '';
+  const url = scalewayPublicUrl(match.storage_path);
+  return `<div class="wish-thumb" onclick="event.stopPropagation(); openWishLightboxFor('${esc(w.id)}','${esc(match.id)}')">${cachedImgTag(url, 'alt=""')}</div>`;
 }
 
 function wishCardHtml(w){
@@ -4914,6 +4956,7 @@ function wishCardHtml(w){
   const isFound = w.statut === 'Trouvé';
   return `
     <div class="wish-card ${isFound?'wish-found':''}" data-wish-id="${esc(w.id)}">
+      ${wishThumbHtml(w)}
       <div class="wish-card-top">
         <span class="wish-prio wish-prio-${prioClass}">${esc(prio)}</span>
         ${w.type_objet ? `<span class="wish-type">${esc(w.type_objet)}</span>` : ''}
@@ -4944,20 +4987,35 @@ async function toggleWishStatut(id, statut){
 // pré-rempli (titre + type) pour éviter de ressaisir l'essentiel — le
 // mode reste 'create' (insertion), openForm() ne s'appuie que sur
 // FORM_MODE==='edit' pour distinguer update/insert, pas sur la présence
-// d'un uid dans l'objet passé.
+// d'un uid dans l'objet passé. Les photos du souhait ne sont PAS reprises
+// automatiquement sur le nouvel objet (pas de lien entre les deux tables
+// de stockage) — l'utilisateur les réenverra sur la fiche une fois créée.
 async function markWishFoundAndCreate(w){
   await sb.from('wishlist').update({ statut:'Trouvé' }).eq('id', w.id);
   await loadWishlist();
   openForm('create', { titre: w.titre, type_objet: w.type_objet });
 }
 
+// Même séquence que handleDeleteObjet() pour les objets : on nettoie
+// d'abord les fichiers Scaleway (au mieux, on continue même si l'un
+// d'eux échoue à se supprimer), puis les lignes wishlist_photos, avant
+// de supprimer le souhait lui-même.
 async function handleDeleteWish(id){
   if(!await window.askGenericConfirm('Supprimer ce souhait ?', 'Supprimer')) return;
+  const shots = (WISHLIST_PHOTOS_BY_ID[id] || []).slice();
+  for(const p of shots){
+    try{ await deleteFromScaleway(p.storage_path); }
+    catch(err){ /* on continue même si une photo échoue à se supprimer du stockage — les lignes DB sont nettoyées juste après */ }
+  }
+  if(shots.length) await sb.from('wishlist_photos').delete().eq('wishlist_id', id);
   await sb.from('wishlist').delete().eq('id', id);
   await loadWishlist();
 }
 
-// Remplit/vide la modale d'ajout-modification. w=null -> création.
+// Remplit/vide la modale d'ajout-modification. w=null -> création (section
+// photos masquée : il faut un id de souhait déjà enregistré pour associer
+// des photos, exactement comme un objet doit déjà exister avant d'avoir
+// des photos sur sa fiche).
 function openWishModal(w){
   WISH_EDIT_ID = w ? w.id : null;
   document.getElementById('wishModalTitle').textContent = w ? 'Modifier le souhait' : 'Nouveau souhait';
@@ -4968,10 +5026,186 @@ function openWishModal(w){
   document.getElementById('wf_piste').value = w ? (w.piste||'') : '';
   document.getElementById('wf_notes').value = w ? (w.notes||'') : '';
   document.getElementById('wishFormMsg').textContent = '';
+  const photoSection = document.getElementById('wishPhotoSection');
+  const photoHint = document.getElementById('wishPhotoHint');
+  if(w){
+    photoSection.style.display = '';
+    photoHint.style.display = 'none';
+    renderWishPhotoGallery(w.id);
+  } else {
+    photoSection.style.display = 'none';
+    photoHint.style.display = '';
+  }
   document.getElementById('wishModal').style.display = 'flex';
 }
 function closeWishModal(){
   document.getElementById('wishModal').style.display = 'none';
+}
+
+// ============================================================
+// Photos d'un souhait (Recto/Verso + supplémentaires) — même structure et
+// mêmes fonctions (compressToWebp, uploadToScaleway/deleteFromScaleway,
+// cachedImgTag/hydrateCachedImages déjà définies dans le script principal)
+// que la galerie photo d'un objet (renderPhotoGallery), table Supabase
+// séparée ("wishlist_photos", voir wishlist_photos_supabase.sql) pour ne
+// jamais mélanger avec "photos" (objets). Chemins de stockage préfixés
+// "wishlist/" pour rester clairement séparés dans le bucket Scaleway.
+// ============================================================
+let WISHLIST_PHOTOS_BY_ID = {};
+
+async function refreshWishPhotosCache(){
+  const { data: photos, error } = await sb.from('wishlist_photos').select('*');
+  if(error){ console.error('Erreur chargement photos souhaits:', error); return; }
+  WISHLIST_PHOTOS_BY_ID = {};
+  (photos||[]).forEach(p=>{
+    WISHLIST_PHOTOS_BY_ID[p.wishlist_id] = WISHLIST_PHOTOS_BY_ID[p.wishlist_id] || [];
+    WISHLIST_PHOTOS_BY_ID[p.wishlist_id].push(p);
+  });
+}
+
+// Ordonne les photos d'un souhait (Recto, Verso puis Autres) pour le lightbox.
+function buildOrderedWishPhotoList(wishId){
+  const rawShots = WISHLIST_PHOTOS_BY_ID[wishId] || [];
+  const seenIds = new Set();
+  const shots = rawShots.filter(s => s.id && !seenIds.has(s.id) && seenIds.add(s.id));
+  return [
+    ...shots.filter(s=>s.label==='Recto'),
+    ...shots.filter(s=>s.label==='Verso'),
+    ...shots.filter(s=>s.label==='Autre').sort((a,b)=>(a.position||0)-(b.position||0))
+  ];
+}
+
+// Ouvre le lightbox plein écran (partagé avec les objets — LIGHTBOX_PHOTOS/
+// LIGHTBOX_INDEX/showLightboxImage()/lightboxNav()/closeLightbox() sont déjà
+// génériques, seule l'alimentation initiale du tableau diffère).
+function openWishLightboxFor(wishId, photoId){
+  const ordered = buildOrderedWishPhotoList(wishId);
+  LIGHTBOX_PHOTOS = ordered.map(s => ({ label: s.label, url: scalewayPublicUrl(s.storage_path) }));
+  const idx = ordered.findIndex(s => s.id === photoId);
+  LIGHTBOX_INDEX = idx >= 0 ? idx : 0;
+  document.getElementById('lightbox').classList.add('active');
+  showLightboxImage();
+}
+
+function renderWishPhotoGallery(wishId){
+  const el = document.getElementById('wishPhotoGalleryWrap');
+  if(!el) return;
+  const rawShots = WISHLIST_PHOTOS_BY_ID[wishId] || [];
+  const seenIds = new Set();
+  const shots = rawShots.filter(s => s.id && !seenIds.has(s.id) && seenIds.add(s.id));
+  const recto = shots.find(s=>s.label==='Recto');
+  const verso = shots.find(s=>s.label==='Verso');
+  const autres = shots.filter(s=>s.label==='Autre').sort((a,b)=>(a.position||0)-(b.position||0));
+
+  const mainTile = (photo, label) => {
+    if(photo){
+      const url = scalewayPublicUrl(photo.storage_path);
+      return `
+        <div class="photo-tile" id="wish-zone-${wishId}-${label}">
+          ${cachedImgTag(url, `alt="${label}" onclick="openWishLightboxFor('${wishId}','${photo.id}')"`)}
+          <span class="lbl-tag">${label}</span>
+          <label class="edit-btn" title="Changer la photo">✎<input type="file" accept="image/*" style="display:none" onchange="handleWishUploadChange(event,'${wishId}','${label}','${photo.id}')"></label>
+        </div>
+      `;
+    }
+    return `
+      <label class="photo-tile empty" id="wish-zone-${wishId}-${label}">
+        ${IMG_ICON}<span class="lbl-tag">Ajouter — ${label}</span>
+        <input type="file" accept="image/*" onchange="handleWishUploadChange(event,'${wishId}','${label}',null)">
+      </label>
+    `;
+  };
+
+  const extraTiles = autres.map(p=>{
+    const url = scalewayPublicUrl(p.storage_path);
+    return `
+      <div class="photo-tile small">
+        ${cachedImgTag(url, `alt="Photo" onclick="openWishLightboxFor('${wishId}','${p.id}')"`)}
+        <button class="del-btn" title="Supprimer" onclick="handleWishDeletePhoto('${p.id}','${p.storage_path}','${wishId}')">×</button>
+      </div>
+    `;
+  }).join('');
+
+  el.innerHTML = `
+    <div class="photo-upload-row">
+      ${mainTile(recto,'Recto')}
+      ${mainTile(verso,'Verso')}
+    </div>
+    <div class="extra-photos-label">Photos supplémentaires</div>
+    <div class="extra-photos-row">
+      ${extraTiles}
+      <label class="photo-tile small empty">
+        ${IMG_ICON}<span class="lbl-tag">Ajouter</span>
+        <input type="file" accept="image/*" onchange="handleWishAddExtraPhoto(event,'${wishId}')">
+      </label>
+    </div>
+  `;
+  hydrateCachedImages(el);
+}
+
+async function handleWishDeletePhoto(photoId, storagePath, wishId){
+  if(!await window.askGenericConfirm('Supprimer cette photo ?', 'Supprimer')) return;
+  try{ await deleteFromScaleway(storagePath); }catch(err){ showToast("Erreur de suppression : " + (err.detail || err.message), 'error'); return; }
+  await sb.from('wishlist_photos').delete().eq('id', photoId);
+  await refreshWishPhotosCache();
+  renderWishPhotoGallery(wishId);
+  renderWishlist();
+}
+
+async function handleWishAddExtraPhoto(event, wishId){
+  const file = event.target.files[0];
+  if(!file) return;
+  if(UPLOAD_IN_PROGRESS){ event.target.value=''; return; }
+  UPLOAD_IN_PROGRESS = true;
+  event.target.disabled = true;
+  try{
+    const { blob, ext, contentType } = await compressToWebp(file);
+    const path = `wishlist/${wishId}/autre-${Date.now()}.${ext}`;
+    try{ await uploadToScaleway(path, blob, contentType); }catch(err){ showToast("Erreur d'envoi : " + (err.detail || err.message), 'error'); return; }
+    const existing = (WISHLIST_PHOTOS_BY_ID[wishId]||[]).filter(s=>s.label==='Autre');
+    const nextPos = existing.length ? Math.max(...existing.map(s=>s.position||0)) + 1 : 1;
+    const { error: insErr } = await sb.from('wishlist_photos').insert({ wishlist_id: wishId, storage_path: path, label: 'Autre', position: nextPos });
+    if(insErr){ showToast("Photo envoyée sur Scaleway, mais erreur d'enregistrement en base : " + insErr.message, 'error'); return; }
+    await refreshWishPhotosCache();
+    renderWishPhotoGallery(wishId);
+    renderWishlist();
+  } finally {
+    UPLOAD_IN_PROGRESS = false;
+  }
+}
+
+async function handleWishUploadChange(event, wishId, label, photoId){
+  const file = event.target.files[0];
+  if(!file) return;
+  if(UPLOAD_IN_PROGRESS){ event.target.value=''; return; }
+  UPLOAD_IN_PROGRESS = true;
+
+  try{
+    const { blob, ext, contentType } = await compressToWebp(file);
+    const path = `wishlist/${wishId}/${label.toLowerCase()}-${Date.now()}.${ext}`;
+
+    try{
+      await uploadToScaleway(path, blob, contentType);
+    }catch(err){
+      showToast("Erreur d'envoi de la photo : " + (err.detail || err.message), 'error');
+      return;
+    }
+
+    if(photoId){
+      await sb.from('wishlist_photos').delete().eq('id', photoId);
+    } else {
+      await sb.from('wishlist_photos').delete().eq('wishlist_id', wishId).eq('label', label);
+    }
+    const position = label === 'Autre' ? ((WISHLIST_PHOTOS_BY_ID[wishId]||[]).filter(s=>s.label==='Autre').length + 1) : null;
+    const { error: insErr } = await sb.from('wishlist_photos').insert({ wishlist_id: wishId, storage_path: path, label: label, position });
+    if(insErr){ showToast("Photo envoyée sur Scaleway, mais erreur d'enregistrement en base : " + insErr.message, 'error'); return; }
+
+    await refreshWishPhotosCache();
+    renderWishPhotoGallery(wishId);
+    renderWishlist();
+  } finally {
+    UPLOAD_IN_PROGRESS = false;
+  }
 }
 
 async function saveWish(){
@@ -5040,7 +5274,18 @@ async function saveWish(){
   const modal = document.getElementById('wishModal');
   if(modal){
     modal.addEventListener('click', e=>{ if(e.target === modal) closeWishModal(); });
-    document.addEventListener('keydown', e=>{ if(e.key==='Escape' && modal.style.display==='flex') closeWishModal(); });
+    // Le lightbox (photos) peut s'ouvrir par-dessus cette modale (voir
+    // openWishLightboxFor) : un Échap doit d'abord le refermer, lui, sans
+    // fermer aussi la modale en dessous dans la foulée. Le gestionnaire du
+    // lightbox (préexistant, phase bulles) referme le lightbox de façon
+    // synchrone ; s'il s'exécutait avant nous, notre garde ne verrait plus
+    // '.active' et fermerait la modale par erreur au même Échap. En phase
+    // de capture, on s'exécute AVANT lui et on lit donc son état d'origine.
+    document.addEventListener('keydown', e=>{
+      if(e.key!=='Escape' || modal.style.display!=='flex') return;
+      if(document.getElementById('lightbox').classList.contains('active')) return;
+      closeWishModal();
+    }, true);
   }
 
   // Filtres "À rechercher" / "Trouvés" — data-wish-filter (et non
