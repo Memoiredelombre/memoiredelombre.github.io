@@ -656,29 +656,15 @@
   .wishlist-header h2{font-family:'Space Grotesk',sans-serif; font-size:21px; font-weight:500; margin:0;}
   /* Même largeur de carte que le catalogue (voir .grid). */
   .wishlist-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:16px;}
-  /* La carte reprend le même format que celles du catalogue (classe .fiche-mini
-     partagée : vignettes recto/verso carrées, puis titre/sec/foot, mêmes points
-     de rareté) — .wish-mini n'ajoute que ce qui est spécifique aux souhaits (pas
-     de navigation au clic sur la carte, barre d'actions en bas). */
-  .wish-mini{cursor:default;}
-  .wish-mini:hover{transform:none;}
+  /* La carte (.wish-mini) et la ligne tableau (.wish-list-row) d'un souhait
+     réutilisent tel quel le format du catalogue (.fiche-mini / .fiche-list-row
+     partagées — vignettes, titre/sec/foot ou dots, cliquables pour ouvrir la
+     fiche) : aucune classe propre ne reste nécessaire pour l'affichage, tout
+     est déjà hérité. Seule la fiche du souhait (voir plus bas, .card/.card-top/
+     .card-fields — également partagées avec l'objet) porte les 3 actions
+     Trouvé/Modifier/Supprimer. */
   .wish-notes{font-size:12px; color:var(--ink-soft); line-height:1.4; margin:-6px 0 10px;}
   .wish-mini .foot{margin-bottom:14px;}
-  /* Le CTA principal (Trouvé) prend toute la place disponible à gauche, sur
-     la même ligne que modifier/supprimer, justifiés à droite du bloc
-     (margin-left:auto), en taille standard (.icon-btn = 40×40, hérité de la
-     règle générique) pour rester bien visibles. */
-  .wish-actions{display:flex; align-items:center; gap:8px;}
-  .wish-actions > .btn-primary, .wish-actions > .btn-secondary:not(.icon-btn){flex:1; min-width:0;}
-  .wish-icon-actions{display:flex; gap:6px; flex:none; margin-left:auto;}
-  /* Vue tableau des souhaits (bascule cartes/tableau) : réutilise .fiche-list-row
-     (classe partagée avec le catalogue — même thumb/titre/sec/dots), sans lien
-     de navigation (un souhait n'a pas de fiche séparée) et avec les 3 actions
-     de la carte reprises ici en boutons icône, alignées à droite de la ligne. */
-  .wish-list-row{cursor:default;}
-  .wish-list-actions{display:flex; gap:6px; flex:none; margin-left:auto;}
-  .wish-photo-section label{display:block; font-size:11px; color:var(--ink-soft); margin-bottom:8px; font-weight:500;}
-  #wishPhotoHint{margin-bottom:14px;}
 
   /* ---------- Modals ---------- */
   .modal-overlay{position:fixed; inset:0; background:rgba(5,4,2,.68); backdrop-filter:blur(6px); z-index:300; display:flex; align-items:center; justify-content:center; padding:20px;}
@@ -765,14 +751,14 @@
   /* Select natif (même id, même événement "change" côté JS) — desktop : forme
      d'origine (rectangulaire, pas arrondi comme les chips), flèche native du
      navigateur intouchée (appearance:auto), aucune icône. */
-  select#sortSelect{
+  select#sortSelect, select#wishSortSelect{
     font-size:12.5px; font-family:'Space Grotesk',sans-serif; padding:0 12px; height:36px;
     box-sizing:border-box; border:1px solid var(--border); border-radius:var(--r-sm);
     background-color:var(--surface); color:var(--ink-soft); cursor:pointer;
     transition:border-color .15s ease; flex:none;
   }
-  select#sortSelect:hover{border-color:color-mix(in srgb, var(--accent) 45%, var(--border));}
-  select#sortSelect:focus{outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft);}
+  select#sortSelect:hover, select#wishSortSelect:hover{border-color:color-mix(in srgb, var(--accent) 45%, var(--border));}
+  select#sortSelect:focus, select#wishSortSelect:focus{outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft);}
 
   /* Mobile : devient un CTA carré identique au bouton d'ouverture/fermeture
      du menu (.menu-toggle-btn/.icon-btn — même 40×40, même fond, même rayon,
@@ -780,7 +766,7 @@
      de l'option choisie est masqué (indent hors-écran) mais reste dans le DOM
      donc rien ne change côté JS (toujours le même <select>, la même valeur). */
   @media(max-width:900px){
-    select#sortSelect{
+    select#sortSelect, select#wishSortSelect{
       -webkit-appearance:none; appearance:none;
       width:40px; height:40px; padding:0; flex:none;
       color:transparent; text-indent:-9999px;
@@ -788,7 +774,7 @@
       background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' fill='none' stroke='%23979284' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round' viewBox='0 0 24 24'%3E%3Cpath d='M8 19V5M5 8l3-3 3 3'/%3E%3Cpath d='M16 5v14M13 16l3 3 3-3'/%3E%3C/svg%3E");
       background-repeat:no-repeat; background-position:center; background-size:17px;
     }
-    select#sortSelect:hover{background-color:var(--surface-hover);}
+    select#sortSelect:hover, select#wishSortSelect:hover{background-color:var(--surface-hover);}
   }
   .view-toggle{display:flex; gap:3px; border:1px solid var(--border); border-radius:var(--r-sm); padding:3px; height:36px; box-sizing:border-box; background:var(--surface); flex:none;}
   /* .wish-view-toggle-btn : même bouton, même style, mais classe propre pour
@@ -1495,6 +1481,16 @@ try{
         <div id="wishFormContent"></div>
       </section>
 
+      <!-- Fiche de présentation d'un souhait — même principe que #view-fiche
+           pour un objet (photos + champs en lecture + actions), remplie par
+           showWishFiche() dans le script additif en bas de page. Les 3
+           actions (Trouvé / Modifier / Supprimer) vivent ici, plus sur la
+           carte/la ligne du listing. -->
+      <section class="view" id="view-wish-fiche">
+        <button class="fiche-back" id="wishFicheBackBtn">← Retour aux souhaits</button>
+        <div id="wishFicheContent"></div>
+      </section>
+
       <section class="view" id="view-fiche">
         <button class="fiche-back" id="backBtn">← Retour au catalogue</button>
         <div id="ficheContent"></div>
@@ -1572,7 +1568,7 @@ function applyAuthUI(){
   // affichée sans nav active dessus.
   const wishlistTabBtn = document.getElementById('wishlistTabBtn');
   if(wishlistTabBtn) wishlistTabBtn.style.display = IS_ADMIN ? '' : 'none';
-  if(!IS_ADMIN && (document.getElementById('view-wishlist')?.classList.contains('active') || document.getElementById('view-wish-form')?.classList.contains('active'))) switchView('catalogue');
+  if(!IS_ADMIN && (document.getElementById('view-wishlist')?.classList.contains('active') || document.getElementById('view-wish-form')?.classList.contains('active') || document.getElementById('view-wish-fiche')?.classList.contains('active'))) switchView('catalogue');
   if(IS_ADMIN){
     authStatus.textContent = '● Admin';
     authStatus.style.color = 'var(--accent, #2e3a55)';
@@ -5007,8 +5003,10 @@ function wishSecLine(w){
 // Carte d'un souhait : reprend le format exact des cartes du catalogue
 // (classe .fiche-mini partagée — thumb-pair recto/verso, puis titre/sec/foot,
 // même ligne région/département avec repli sur le type, mêmes points de
-// rareté) via .wish-mini, avec en plus une barre d'actions propre aux
-// souhaits à la place du clic-vers-fiche (pas de fiche à part).
+// rareté) via .wish-mini. Plus aucune action ici (les 3 boutons vivent
+// désormais sur la fiche, voir showWishFiche()) : comme une carte du
+// catalogue, cliquer la carte ouvre simplement sa fiche (délégation dans
+// wireWishlist() ci-dessous).
 function wishCardHtml(w){
   const secLine = wishSecLine(w);
   return `
@@ -5021,13 +5019,6 @@ function wishCardHtml(w){
         <div class="foot">
           <span></span>
           <span class="dots">${dotsHtml(raretePos(w.indice_rarete))}</span>
-        </div>
-        <div class="wish-actions">
-          <button class="btn btn-primary" data-wish-action="found" type="button" title="Créer l'objet dans le catalogue">${CHECK_ICON} Trouvé</button>
-          <div class="wish-icon-actions">
-            <button class="btn btn-secondary icon-btn" data-wish-action="edit" type="button" title="Modifier">${EDIT_ICON}</button>
-            <button class="btn btn-secondary icon-btn" data-wish-action="delete" type="button" title="Supprimer">${TRASH_ICON}</button>
-          </div>
         </div>
       </div>
     </div>
@@ -5045,10 +5036,10 @@ function wishThumbListHtml(w){
   return IMG_ICON;
 }
 
-// Ligne tableau d'un souhait — reprend .fiche-list-row du catalogue (thumb,
-// titre, sec, dots), mais sans lien de navigation (pas de fiche séparée) et
-// avec les 3 actions de la carte reprises ici en boutons icône à droite,
-// plutôt que la colonne prix (qui n'existe pas pour un souhait).
+// Ligne tableau d'un souhait — reprend .fiche-list-row du catalogue à
+// l'identique (thumb, titre, sec, dots), plus aucune action ici (voir
+// wishCardHtml() ci-dessus) : cliquer la ligne ouvre sa fiche, exactement
+// comme une ligne du catalogue ouvre celle de l'objet.
 function wishListRowHtml(w){
   const secLine = wishSecLine(w);
   return `
@@ -5057,11 +5048,6 @@ function wishListRowHtml(w){
       <div class="titre">${esc(w.titre)}</div>
       <div class="sec">${esc(secLine)}</div>
       <span class="dots">${dotsHtml(raretePos(w.indice_rarete))}</span>
-      <div class="wish-list-actions">
-        <button class="btn btn-primary icon-btn" data-wish-action="found" type="button" title="Créer l'objet dans le catalogue">${CHECK_ICON}</button>
-        <button class="btn btn-secondary icon-btn" data-wish-action="edit" type="button" title="Modifier">${EDIT_ICON}</button>
-        <button class="btn btn-secondary icon-btn" data-wish-action="delete" type="button" title="Supprimer">${TRASH_ICON}</button>
-      </div>
     </div>
   `;
 }
@@ -5106,10 +5092,84 @@ async function markWishFoundAndCreate(w){
   openFiche(data.uid);
 }
 
+// Suppression depuis la fiche du souhait (seul endroit d'où elle est
+// déclenchable désormais — plus de bouton sur la carte/la ligne du
+// listing) : comme handleDeleteObjet(), revient à la liste après coup.
 async function handleDeleteWish(id){
   if(!await window.askGenericConfirm('Supprimer ce souhait ?', 'Supprimer')) return;
+  const foundBtn = document.getElementById('wishFicheFoundBtn');
+  const editBtn = document.getElementById('wishFicheEditBtn');
+  const delBtn = document.getElementById('wishFicheDeleteBtn');
+  if(foundBtn) foundBtn.disabled = true;
+  if(editBtn) editBtn.disabled = true;
+  if(delBtn) delBtn.disabled = true;
   await deleteWishRow(id);
   await loadWishlist();
+  switchView('wishlist');
+}
+
+let CURRENT_WISH_FICHE_ID = null;
+
+// Ouvre la fiche d'un souhait — même principe que openFiche()/showFiche()
+// pour un objet : la carte/la ligne du listing ne fait plus que naviguer ici
+// (voir wishCardHtml()/wishListRowHtml()), les 3 actions (Trouvé / Modifier /
+// Supprimer) vivent maintenant sur cette page plutôt que sur la carte.
+function openWishFiche(w){
+  CURRENT_WISH_FICHE_ID = w.id;
+  showWishFiche(w);
+  switchView('wish-fiche');
+  window.scrollTo({top: 0, behavior: 'instant'});
+}
+
+// Construit et affiche la fiche détaillée d'un souhait — même structure que
+// showFiche() pour un objet (card/card-top/card-fields/field-grid), sans le
+// bloc "Informations privées" ni la mini-carte (champs qui n'existent pas
+// pour un souhait, voir WISH_OBJET_SHARED_COLS).
+function showWishFiche(w){
+  const c = document.getElementById('wishFicheContent');
+  if(!c) return;
+  const secLine = wishSecLine(w);
+  c.innerHTML = `
+    <div class="card">
+      <div class="card-top">
+        <div>
+          <h2>${esc(w.titre)}</h2>
+          ${secLine ? `<div class="sec">${esc(secLine)}</div>` : ''}
+        </div>
+        <div class="header-actions">
+          <div class="rarity-pill"><span class="dots dots-lg">${dotsHtml(raretePos(w.indice_rarete))}</span></div>
+          <button class="btn btn-primary" id="wishFicheFoundBtn" type="button" title="Créer l'objet dans le catalogue">${CHECK_ICON} Trouvé</button>
+          <button class="btn btn-secondary" id="wishFicheEditBtn" type="button">Modifier</button>
+          <button class="btn btn-danger" id="wishFicheDeleteBtn" type="button">Supprimer</button>
+        </div>
+      </div>
+      <div id="wishFicheGalleryWrap" style="margin:20px 26px 0;"></div>
+      <div class="card-fields">
+        <div class="field-grid">
+          <div class="field-row"><div class="k">Type d'objet</div><div class="v">${esc(w.type_objet) || '—'}</div></div>
+          <div class="field-row"><div class="k">Référence catalogue</div><div class="v mono">${esc(w.reference_catalogue) || '—'}</div></div>
+          <div class="field-row"><div class="k">Région</div><div class="v">${esc(w.region) || '—'}</div></div>
+          <div class="field-row"><div class="k">Département</div><div class="v">${esc(w.departement) || '—'}</div></div>
+          <div class="field-row"><div class="k">Mouvement</div><div class="v">${esc(w.mouvement) || '—'}</div></div>
+          <div class="field-row"><div class="k">Taille</div><div class="v mono">${esc(w.taille) || '—'}</div></div>
+          <div class="field-row"><div class="k">Fabricant</div><div class="v">${esc(w.fabricant) || '—'}</div></div>
+          <div class="field-row"><div class="k">Détail tirage</div><div class="v">${esc(w.detail_tirage) || '—'}</div></div>
+          <div class="field-row"><div class="k">Date de fabrication</div><div class="v mono">${w.date_fabrication ? new Date(w.date_fabrication).toLocaleDateString('fr-FR') : '—'}</div></div>
+          <div class="field-row"><div class="k">Type de variante</div><div class="v">${esc(w.type_variante) || '—'}</div></div>
+          <div class="field-row"><div class="k">Authenticité</div><div class="v">${esc(w.authenticite) || '—'}</div></div>
+          <div class="field-row"><div class="k">État de conservation</div><div class="v">${esc(w.etat_conservation) || '—'}</div></div>
+          <div class="field-row full"><div class="k">Notes</div><div class="v rich-text">${formatRichText(w.notes)}</div></div>
+          <div class="field-row full"><div class="k">Infos / historique</div><div class="v rich-text">${formatRichText(w.infos)}</div></div>
+          <div class="field-row full"><div class="k">Détails</div><div class="v rich-text">${formatRichText(w.details)}</div></div>
+        </div>
+      </div>
+    </div>
+  `;
+  document.getElementById('wishFicheFoundBtn').addEventListener('click', ()=> markWishFoundAndCreate(w));
+  document.getElementById('wishFicheEditBtn').addEventListener('click', ()=> openWishForm(w));
+  document.getElementById('wishFicheDeleteBtn').addEventListener('click', ()=> handleDeleteWish(w.id));
+  renderWishPhotoGallery(w.id);
+  hydrateCachedImages(c);
 }
 
 // Construit la page d'ajout/modification d'un souhait — repris à l'identique
@@ -5121,9 +5181,10 @@ async function handleDeleteWish(id){
 // section "Informations privées" de l'objet (provenance, date d'acquisition,
 // prix d'achat, date d'estimation) ainsi que emplacement physique et
 // visibilité, qui eux ne concernent qu'un objet déjà possédé — un souhait ne
-// l'est pas encore. w=null -> création (section photos masquée : il faut un
-// id de souhait déjà enregistré pour y associer des photos, exactement comme
-// un objet doit déjà exister avant d'avoir des photos sur sa fiche).
+// l'est pas encore. Comme pour l'objet, ce formulaire ne contient QUE les
+// champs texte — les photos vivent sur la fiche (voir showWishFiche()), pas
+// ici, exactement comme #view-form (objet) n'a pas de galerie et #view-fiche
+// oui.
 function openWishForm(w){
   WISH_EDIT_ID = w ? w.id : null;
   const o = w || {};
@@ -5182,17 +5243,6 @@ function openWishForm(w){
         </div>
       </div>
 
-      <!-- Photos (Recto/Verso + supplémentaires) : même structure et mêmes
-           fonctions (compression WebP, cache navigateur, envoi Scaleway) que
-           la fiche d'un objet — voir renderWishPhotoGallery() plus bas.
-           Nécessite un id de souhait déjà enregistré, donc masqué à la
-           création tant que rien n'a encore été sauvegardé une première fois. -->
-      <div class="wish-photo-section" id="wishPhotoSection" style="${w ? '' : 'display:none;'}">
-        <label>Photos</label>
-        <div id="wishPhotoGalleryWrap"></div>
-      </div>
-      <div class="form-msg" id="wishPhotoHint" style="${w ? 'display:none;' : ''}">Enregistrez d'abord ce souhait pour pouvoir y ajouter des photos.</div>
-
       <div class="form-actions">
         <button class="btn btn-primary" id="wishSaveBtn" type="button">Enregistrer</button>
         <span class="form-msg" id="wishFormMsg"></span>
@@ -5202,7 +5252,6 @@ function openWishForm(w){
 
   wireTirageAutofillFor('wf_');
   document.getElementById('wishSaveBtn').addEventListener('click', saveWish);
-  if(w) renderWishPhotoGallery(w.id);
 
   switchView('wish-form');
 }
@@ -5253,7 +5302,7 @@ function openWishLightboxFor(wishId, photoId){
 }
 
 function renderWishPhotoGallery(wishId){
-  const el = document.getElementById('wishPhotoGalleryWrap');
+  const el = document.getElementById('wishFicheGalleryWrap');
   if(!el) return;
   const rawShots = WISHLIST_PHOTOS_BY_ID[wishId] || [];
   const seenIds = new Set();
@@ -5386,8 +5435,9 @@ const WISH_OBJET_SHARED_COLS = ['type_objet','titre','reference_catalogue','regi
   'fabricant','type_tirage','quantite_tirage','detail_tirage','date_fabrication','indice_rarete','etat_conservation',
   'type_variante','authenticite','notes'];
 
-// Enregistre le formulaire (insert ou update selon WISH_EDIT_ID) puis revient
-// à la liste des souhaits (rechargée avec le résultat).
+// Enregistre le formulaire (insert ou update selon WISH_EDIT_ID) puis ouvre
+// la fiche du souhait — comme saveObjet() qui, création ou modification,
+// atterrit toujours sur openFiche(resultUid) plutôt que sur le catalogue.
 async function saveWish(){
   const payload = {};
   WISH_OBJET_SHARED_COLS.forEach(c=>{
@@ -5406,18 +5456,32 @@ async function saveWish(){
   }
   const saveBtn = document.getElementById('wishSaveBtn');
   saveBtn.disabled = true;
-  const { error } = WISH_EDIT_ID
-    ? await sb.from('wishlist').update(payload).eq('id', WISH_EDIT_ID)
-    : await sb.from('wishlist').insert(payload);
-  if(error){
-    saveBtn.disabled = false;
-    const msg = document.getElementById('wishFormMsg');
-    msg.textContent = 'Erreur : ' + error.message;
-    msg.classList.add('error');
-    return;
+  let resultId;
+  if(WISH_EDIT_ID){
+    const { error } = await sb.from('wishlist').update(payload).eq('id', WISH_EDIT_ID);
+    if(error){
+      saveBtn.disabled = false;
+      const msg = document.getElementById('wishFormMsg');
+      msg.textContent = 'Erreur : ' + error.message;
+      msg.classList.add('error');
+      return;
+    }
+    resultId = WISH_EDIT_ID;
+  } else {
+    const { data, error } = await sb.from('wishlist').insert(payload).select().single();
+    if(error){
+      saveBtn.disabled = false;
+      const msg = document.getElementById('wishFormMsg');
+      msg.textContent = 'Erreur : ' + error.message;
+      msg.classList.add('error');
+      return;
+    }
+    resultId = data.id;
   }
   await loadWishlist();
-  switchView('wishlist');
+  const w = ALL_WISHLIST.find(x => String(x.id) === String(resultId));
+  if(w) openWishFiche(w);
+  else switchView('wishlist'); // filet de sécurité, ne devrait pas arriver
 }
 
 (function wireWishlist(){
@@ -5455,27 +5519,34 @@ async function saveWish(){
     });
   });
 
-  // "← Annuler" — comme pour formBackBtn (objets), mais toujours vers la
-  // liste des souhaits : un souhait n'a pas de fiche séparée, ce formulaire
-  // EST sa page de détail, en création comme en modification.
+  // "← Annuler" — même principe que formBackBtn (objets) : retour à la fiche
+  // en modification (WISH_EDIT_ID posé), retour à la liste en création (pas
+  // encore de fiche à laquelle revenir).
   const wishFormBackBtn = document.getElementById('wishFormBackBtn');
-  if(wishFormBackBtn) wishFormBackBtn.addEventListener('click', ()=> switchView('wishlist'));
+  if(wishFormBackBtn){
+    wishFormBackBtn.addEventListener('click', ()=>{
+      const w = WISH_EDIT_ID ? ALL_WISHLIST.find(x => String(x.id) === String(WISH_EDIT_ID)) : null;
+      if(w) openWishFiche(w);
+      else switchView('wishlist');
+    });
+  }
 
-  // Actions sur une carte (délégation d'événement, une seule écoute pour
-  // toute la grille plutôt qu'un onclick par bouton).
+  // "← Retour aux souhaits" depuis la fiche.
+  const wishFicheBackBtn = document.getElementById('wishFicheBackBtn');
+  if(wishFicheBackBtn) wishFicheBackBtn.addEventListener('click', ()=> switchView('wishlist'));
+
+  // Clic sur une carte ou une ligne du listing -> ouvre la fiche du souhait
+  // (délégation d'événement, comme le catalogue avec wireGridItem() —
+  // simplement une navigation, plus aucune action n'est déclenchable
+  // directement depuis le listing).
   const grid = document.getElementById('wishlistGrid');
   if(grid){
     grid.addEventListener('click', e=>{
-      const actionBtn = e.target.closest('[data-wish-action]');
-      if(!actionBtn) return;
-      const card = actionBtn.closest('[data-wish-id]');
+      const card = e.target.closest('[data-wish-id]');
       if(!card) return;
       const w = ALL_WISHLIST.find(x => String(x.id) === card.dataset.wishId);
       if(!w) return;
-      const action = actionBtn.dataset.wishAction;
-      if(action==='found') markWishFoundAndCreate(w);
-      else if(action==='edit') openWishForm(w);
-      else if(action==='delete') handleDeleteWish(w.id);
+      openWishFiche(w);
     });
   }
 })();
