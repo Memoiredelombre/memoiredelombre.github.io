@@ -654,23 +654,14 @@
   /* ---------- Liste de souhaits ---------- */
   .wishlist-header{display:flex; align-items:center; justify-content:space-between; gap:14px; margin-bottom:16px; flex-wrap:wrap;}
   .wishlist-header h2{font-family:'Space Grotesk',sans-serif; font-size:21px; font-weight:500; margin:0;}
-  .wishlist-budget-total{flex:1 1 auto; text-align:right; font-size:12.5px; color:var(--ink-soft); min-width:180px;}
-  .wishlist-budget-total b{color:var(--ink); font-family:'IBM Plex Mono',monospace;}
   /* Même largeur de carte que le catalogue (voir .grid). */
   .wishlist-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:16px;}
   /* La carte reprend le même format que celles du catalogue (classe .fiche-mini
-     partagée : vignettes recto/verso carrées, puis id/titre/sec/foot) — .wish-mini
-     n'ajoute que ce qui est spécifique aux souhaits (pas de navigation au clic sur
-     la carte, ligne priorité/type à la place de l'id, barre d'actions en bas). */
+     partagée : vignettes recto/verso carrées, puis titre/sec/foot, mêmes points
+     de rareté) — .wish-mini n'ajoute que ce qui est spécifique aux souhaits (pas
+     de navigation au clic sur la carte, barre d'actions en bas). */
   .wish-mini{cursor:default;}
   .wish-mini:hover{transform:none;}
-  .wish-top-row{display:flex; align-items:center; gap:8px; flex-wrap:wrap;}
-  .wish-prio{font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; padding:2px 9px; border-radius:20px; background:var(--surface-2); color:var(--ink-soft); border:1px solid var(--border);}
-  .wish-prio-haute{color:var(--private); border-color:color-mix(in srgb, var(--private) 45%, var(--border));}
-  .wish-prio-moyenne{color:var(--accent); border-color:color-mix(in srgb, var(--accent) 45%, var(--border));}
-  .wish-type{font-size:11.5px; color:var(--ink-faint);}
-  .wish-budget{font-size:12.5px; color:var(--ink-soft);}
-  .wish-budget b{color:var(--ink); font-family:'IBM Plex Mono',monospace;}
   .wish-notes{font-size:12px; color:var(--ink-soft); line-height:1.4; margin:-6px 0 10px;}
   .wish-mini .foot{margin-bottom:14px;}
   /* Le CTA principal (Trouvé) prend toute la place disponible à gauche, sur
@@ -680,6 +671,12 @@
   .wish-actions{display:flex; align-items:center; gap:8px;}
   .wish-actions > .btn-primary, .wish-actions > .btn-secondary:not(.icon-btn){flex:1; min-width:0;}
   .wish-icon-actions{display:flex; gap:6px; flex:none; margin-left:auto;}
+  /* Vue tableau des souhaits (bascule cartes/tableau) : réutilise .fiche-list-row
+     (classe partagée avec le catalogue — même thumb/titre/sec/dots), sans lien
+     de navigation (un souhait n'a pas de fiche séparée) et avec les 3 actions
+     de la carte reprises ici en boutons icône, alignées à droite de la ligne. */
+  .wish-list-row{cursor:default;}
+  .wish-list-actions{display:flex; gap:6px; flex:none; margin-left:auto;}
   .wish-photo-section label{display:block; font-size:11px; color:var(--ink-soft); margin-bottom:8px; font-weight:500;}
   #wishPhotoHint{margin-bottom:14px;}
 
@@ -794,9 +791,13 @@
     select#sortSelect:hover{background-color:var(--surface-hover);}
   }
   .view-toggle{display:flex; gap:3px; border:1px solid var(--border); border-radius:var(--r-sm); padding:3px; height:36px; box-sizing:border-box; background:var(--surface); flex:none;}
-  .view-toggle-btn{border:none; background:none; width:34px; min-width:34px; display:flex; align-items:center; justify-content:center; border-radius:8px; cursor:pointer; color:var(--ink-soft); font-size:15px; line-height:1;}
-  .view-toggle-btn svg{width:15px; height:15px;}
-  .view-toggle-btn.active{background:var(--accent); color:var(--accent-ink);}
+  /* .wish-view-toggle-btn : même bouton, même style, mais classe propre pour
+     la liste de souhaits — évite que l'écouteur générique déjà attaché à
+     .view-toggle-btn (au chargement de la page, sur les boutons du
+     catalogue) ne capture aussi ceux du souhait. */
+  .view-toggle-btn, .wish-view-toggle-btn{border:none; background:none; width:34px; min-width:34px; display:flex; align-items:center; justify-content:center; border-radius:8px; cursor:pointer; color:var(--ink-soft); font-size:15px; line-height:1;}
+  .view-toggle-btn svg, .wish-view-toggle-btn svg{width:15px; height:15px;}
+  .view-toggle-btn.active, .wish-view-toggle-btn.active{background:var(--accent); color:var(--accent-ink);}
 
   .chip{font-size:12px; font-weight:600; border:1px solid var(--border); background:var(--surface); border-radius:20px; padding:0 14px; height:36px; box-sizing:border-box; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; color:var(--ink-soft); user-select:none; transition:background .12s ease, color .12s ease, border-color .12s ease, box-shadow .15s ease;}
   .chip:hover{border-color:var(--accent);}
@@ -1443,15 +1444,46 @@ try{
       <!-- Liste de souhaits : pièces recherchées mais pas encore acquises,
            table Supabase séparée ("wishlist", voir wishlist_supabase.sql)
            pour ne jamais fausser les totaux de la collection (objets)
-           affichés sur le tableau de bord. Réservée à l'admin (budget cible
-           = donnée privée). Chargée à la demande (premier clic sur l'onglet),
-           voir loadWishlist() dans le script additif en bas de page. -->
+           affichés sur le tableau de bord. Réservée à l'admin. Chargée à la
+           demande (premier clic sur l'onglet), voir loadWishlist() dans le
+           script additif en bas de page. -->
       <section class="view" id="view-wishlist">
         <div class="wishlist-header">
           <h2>Liste de souhaits</h2>
-          <div class="wishlist-budget-total" id="wishlistBudgetTotal"></div>
           <button class="btn btn-primary" id="newWishBtn" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg> <span class="btn-label">Nouveau souhait</span></button>
         </div>
+
+        <!-- Même système de tri que le catalogue (sortItems(), réutilisé tel
+             quel) — sans "Date d'acquisition" qui n'a pas de sens pour un
+             souhait pas encore acquis. Id et classes propres au souhait
+             (wishSortSelect / wish-view-toggle-btn) plutôt que ceux du
+             catalogue (#sortSelect / .view-toggle-btn), pour ne jamais être
+             capturés par les écouteurs déjà attachés à ces sélecteurs. -->
+        <div class="cat-toolbar">
+          <div class="cat-toolbar-left">
+            <select id="wishSortSelect">
+              <option value="titre">Trier : Titre (A→Z)</option>
+              <option value="rarete">Trier : Rareté</option>
+              <option value="fabricant">Trier : Fabricant</option>
+              <option value="mouvement">Trier : Mouvement</option>
+              <option value="departement">Trier : Département</option>
+              <option value="region">Trier : Région</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Même ligne "nombre affiché + bascule cartes/tableau" que le
+             catalogue (classes .catalogue-count-row/.catalogue-count/.view-toggle
+             partagées, sans risque puisqu'elles ne sont jamais ciblées par du
+             JS — seuls les boutons ont leur propre classe, voir plus haut). -->
+        <div class="catalogue-count-row">
+          <div id="wishlistCount" class="catalogue-count"></div>
+          <div class="view-toggle">
+            <button class="wish-view-toggle-btn active" data-wish-mode="cards" type="button" title="Vue cartes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="8" height="8" rx="1.3"/><rect x="13" y="3" width="8" height="8" rx="1.3"/><rect x="3" y="13" width="8" height="8" rx="1.3"/><rect x="13" y="13" width="8" height="8" rx="1.3"/></svg></button>
+            <button class="wish-view-toggle-btn" data-wish-mode="list" type="button" title="Vue tableau"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+          </div>
+        </div>
+
         <div class="wishlist-grid" id="wishlistGrid"><div class="state-msg">Chargement…</div></div>
       </section>
 
@@ -3055,20 +3087,52 @@ function computeDetailTirage(type, quantite){
 const VISIBILITE_OPTIONS = ['Partageable','Privé'];
 
 // Génère un champ du formulaire (texte, select ou zone de texte) selon son type.
-function fieldHtml(col, label, type, val, opts){
+function fieldHtml(col, label, type, val, opts, prefix){
+  prefix = prefix || 'f_';
   const v = (val===undefined || val===null) ? '' : val;
   if(type==='select'){
     return `<div class="form-field"><label>${esc(label)}</label>
-      <select id="f_${col}">${opts.map(o=>`<option value="${esc(o)}" ${o===v?'selected':''}>${esc(o)||'—'}</option>`).join('')}</select>
+      <select id="${prefix}${col}">${opts.map(o=>`<option value="${esc(o)}" ${o===v?'selected':''}>${esc(o)||'—'}</option>`).join('')}</select>
     </div>`;
   }
   if(type==='textarea'){
     const hint = (col==='infos' || col==='notes')
       ? '<div class="field-hint">Astuce : **gras**, *italique*, un retour à la ligne suffit, et les liens (http://...) deviennent cliquables automatiquement.</div>'
       : '';
-    return `<div class="form-field full"><label>${esc(label)}</label><textarea id="f_${col}">${esc(v)}</textarea>${hint}</div>`;
+    return `<div class="form-field full"><label>${esc(label)}</label><textarea id="${prefix}${col}">${esc(v)}</textarea>${hint}</div>`;
   }
-  return `<div class="form-field"><label>${esc(label)}</label><input id="f_${col}" type="${type}" value="${esc(v)}"></div>`;
+  return `<div class="form-field"><label>${esc(label)}</label><input id="${prefix}${col}" type="${type}" value="${esc(v)}"></div>`;
+}
+
+// Souhaits : même rendu que fieldHtml() ci-dessus mais préfixe "wf_" plutôt
+// que "f_", pour ne jamais entrer en collision avec les ids du formulaire
+// objet (#formContent et #wishFormContent restent tous les deux présents
+// dans le DOM même quand un seul des deux est affiché).
+function wishFieldHtml(col, label, type, val, opts){
+  return fieldHtml(col, label, type, val, opts, 'wf_');
+}
+
+// Auto-alimente "Détail tirage" (texte libre) à partir de Type de tirage +
+// Quantité, sauf si l'utilisateur y a déjà saisi un texte personnalisé qui ne
+// correspond pas à ce que type+quantité auraient généré — partagé entre le
+// formulaire objet (prefix "f_") et le formulaire souhait (prefix "wf_").
+function wireTirageAutofillFor(prefix){
+  const typeEl = document.getElementById(prefix+'type_tirage');
+  const qteEl = document.getElementById(prefix+'quantite_tirage');
+  const detailEl = document.getElementById(prefix+'detail_tirage');
+  if(!typeEl || !qteEl || !detailEl) return;
+  let prevType = typeEl.value, prevQte = qteEl.value;
+  function sync(){
+    const previousAuto = computeDetailTirage(prevType, prevQte);
+    const nextAuto = computeDetailTirage(typeEl.value, qteEl.value);
+    if(detailEl.value === '' || detailEl.value === previousAuto){
+      detailEl.value = nextAuto;
+    }
+    prevType = typeEl.value;
+    prevQte = qteEl.value;
+  }
+  typeEl.addEventListener('change', sync);
+  qteEl.addEventListener('input', sync);
 }
 
 // ============================================================
@@ -3157,24 +3221,7 @@ function openForm(mode, objet){
   // "Type de tirage" et "Quantité" alimentent automatiquement "Détail tirage"
   // (texte libre), sauf si ce dernier contient déjà un texte personnalisé
   // qui ne correspond pas à ce que type+quantité auraient généré.
-  (function wireTirageAutofill(){
-    const typeEl = document.getElementById('f_type_tirage');
-    const qteEl = document.getElementById('f_quantite_tirage');
-    const detailEl = document.getElementById('f_detail_tirage');
-    if(!typeEl || !qteEl || !detailEl) return;
-    let prevType = typeEl.value, prevQte = qteEl.value;
-    function sync(){
-      const previousAuto = computeDetailTirage(prevType, prevQte);
-      const nextAuto = computeDetailTirage(typeEl.value, qteEl.value);
-      if(detailEl.value === '' || detailEl.value === previousAuto){
-        detailEl.value = nextAuto;
-      }
-      prevType = typeEl.value;
-      prevQte = qteEl.value;
-    }
-    typeEl.addEventListener('change', sync);
-    qteEl.addEventListener('input', sync);
-  })();
+  wireTirageAutofillFor('f_');
 
   switchView('form');
 }
@@ -4884,6 +4931,8 @@ refreshAuthState().then(()=> loadAll()).then(()=> initFranceMap());
 let ALL_WISHLIST = [];
 let WISHLIST_LOADED = false;
 let WISH_EDIT_ID = null; // null = création, sinon id du souhait en cours de modification
+let WISHLIST_SORT = 'titre'; // même mécanisme que CURRENT_SORT/sortItems() du catalogue
+let WISHLIST_VIEW_MODE = 'cards'; // 'cards' | 'list' — même mécanisme que CATALOGUE_VIEW_MODE
 
 async function loadWishlist(){
   const grid = document.getElementById('wishlistGrid');
@@ -4905,19 +4954,24 @@ async function loadWishlist(){
 // Un souhait marqué "Trouvé" est aussitôt converti en objet du catalogue et
 // retiré de cette liste (voir markWishFoundAndCreate()) : plus de statut à
 // filtrer, tout ce qui reste ici est par définition encore à rechercher.
+// Tri (sortItems(), partagé avec le catalogue) et bascule cartes/tableau
+// (WISHLIST_VIEW_MODE) repris du catalogue — pas de recherche/filtre ici,
+// une liste de souhaits reste courte, donc pas de "N sur M".
 function renderWishlist(){
   const grid = document.getElementById('wishlistGrid');
   if(!grid) return;
-  const totalBudget = ALL_WISHLIST
-    .filter(w => w.budget_cible!=null)
-    .reduce((s,w)=> s + Number(w.budget_cible), 0);
-  const totalEl = document.getElementById('wishlistBudgetTotal');
-  if(totalEl) totalEl.innerHTML = totalBudget > 0 ? `Budget cible cumulé : <b>${EUR(totalBudget)}</b>` : '';
+  const countEl = document.getElementById('wishlistCount');
+  if(countEl){
+    countEl.innerHTML = `<b>${ALL_WISHLIST.length}</b> souhait${ALL_WISHLIST.length>1?'s':''} affiché${ALL_WISHLIST.length>1?'s':''}`;
+  }
   if(!ALL_WISHLIST.length){
+    grid.className = 'wishlist-grid';
     grid.innerHTML = `<div class="state-msg">Aucun souhait pour le moment — ajoutez la première pièce que vous recherchez.</div>`;
     return;
   }
-  grid.innerHTML = ALL_WISHLIST.map(wishCardHtml).join('');
+  const items = sortItems(ALL_WISHLIST, WISHLIST_SORT);
+  grid.className = WISHLIST_VIEW_MODE === 'list' ? 'catalogue-list' : 'wishlist-grid';
+  grid.innerHTML = items.map(WISHLIST_VIEW_MODE === 'list' ? wishListRowHtml : wishCardHtml).join('');
   hydrateCachedImages(grid);
 }
 
@@ -4944,26 +4998,29 @@ function wishThumbTile(wishId, label){
   return `<div class="thumb">${IMG_ICON}${label}</div>`;
 }
 
+// Ligne secondaire partagée entre la carte et la ligne tableau d'un souhait
+// (même repli région/département -> type que le catalogue, voir cardHtml()).
+function wishSecLine(w){
+  return [w.region, w.departement].filter(Boolean).join(' · ') || w.type_objet || '';
+}
+
 // Carte d'un souhait : reprend le format exact des cartes du catalogue
-// (classe .fiche-mini partagée — thumb-pair recto/verso, puis id/titre/sec/foot)
-// via .wish-mini, avec en plus une ligne priorité/type et une barre d'actions
-// propres aux souhaits (pas de fiche à part vers laquelle naviguer).
+// (classe .fiche-mini partagée — thumb-pair recto/verso, puis titre/sec/foot,
+// même ligne région/département avec repli sur le type, mêmes points de
+// rareté) via .wish-mini, avec en plus une barre d'actions propre aux
+// souhaits à la place du clic-vers-fiche (pas de fiche à part).
 function wishCardHtml(w){
-  const prio = w.priorite || 'Moyenne';
-  const prioClass = prio==='Haute' ? 'haute' : prio==='Basse' ? 'basse' : 'moyenne';
+  const secLine = wishSecLine(w);
   return `
     <div class="fiche-mini wish-mini" data-wish-id="${esc(w.id)}">
       <div class="thumb-pair">${wishThumbTile(w.id,'Recto')}${wishThumbTile(w.id,'Verso')}</div>
       <div class="body">
-        <div class="wish-top-row">
-          <span class="wish-prio wish-prio-${prioClass}">${esc(prio)}</span>
-          ${w.type_objet ? `<span class="wish-type">${esc(w.type_objet)}</span>` : ''}
-        </div>
         <div class="titre">${esc(w.titre)}</div>
-        ${w.piste ? `<div class="sec">${esc(w.piste)}</div>` : ''}
+        ${secLine ? `<div class="sec">${esc(secLine)}</div>` : ''}
         ${w.notes ? `<div class="wish-notes">${esc(w.notes)}</div>` : ''}
         <div class="foot">
-          ${w.budget_cible != null ? `<span class="wish-budget">Budget cible : <b>${EUR(w.budget_cible)}</b></span>` : '<span></span>'}
+          <span></span>
+          <span class="dots">${dotsHtml(raretePos(w.indice_rarete))}</span>
         </div>
         <div class="wish-actions">
           <button class="btn btn-primary" data-wish-action="found" type="button" title="Créer l'objet dans le catalogue">${CHECK_ICON} Trouvé</button>
@@ -4972,6 +5029,38 @@ function wishCardHtml(w){
             <button class="btn btn-secondary icon-btn" data-wish-action="delete" type="button" title="Supprimer">${TRASH_ICON}</button>
           </div>
         </div>
+      </div>
+    </div>
+  `;
+}
+
+// Vignette unique (vue tableau) — même principe que thumbListHtml() du
+// catalogue : photo "Recto" en priorité, sinon la première disponible.
+function wishThumbListHtml(w){
+  const shots = WISHLIST_PHOTOS_BY_ID[w.id] || [];
+  const match = shots.find(s=>s.label==='Recto') || shots[0];
+  if(match){
+    return cachedImgTag(scalewayPublicUrl(match.storage_path), 'alt=""');
+  }
+  return IMG_ICON;
+}
+
+// Ligne tableau d'un souhait — reprend .fiche-list-row du catalogue (thumb,
+// titre, sec, dots), mais sans lien de navigation (pas de fiche séparée) et
+// avec les 3 actions de la carte reprises ici en boutons icône à droite,
+// plutôt que la colonne prix (qui n'existe pas pour un souhait).
+function wishListRowHtml(w){
+  const secLine = wishSecLine(w);
+  return `
+    <div class="fiche-list-row wish-list-row" data-wish-id="${esc(w.id)}">
+      <div class="thumb-list">${wishThumbListHtml(w)}</div>
+      <div class="titre">${esc(w.titre)}</div>
+      <div class="sec">${esc(secLine)}</div>
+      <span class="dots">${dotsHtml(raretePos(w.indice_rarete))}</span>
+      <div class="wish-list-actions">
+        <button class="btn btn-primary icon-btn" data-wish-action="found" type="button" title="Créer l'objet dans le catalogue">${CHECK_ICON}</button>
+        <button class="btn btn-secondary icon-btn" data-wish-action="edit" type="button" title="Modifier">${EDIT_ICON}</button>
+        <button class="btn btn-secondary icon-btn" data-wish-action="delete" type="button" title="Supprimer">${TRASH_ICON}</button>
       </div>
     </div>
   `;
@@ -4991,21 +5080,22 @@ async function deleteWishRow(id){
   await sb.from('wishlist').delete().eq('id', id);
 }
 
-// Crée directement l'objet correspondant dans le catalogue (titre + type +
-// date d'acquisition = aujourd'hui, pour que les stats du tableau de bord —
-// "Derniers ajoutés", "Acquisitions cette année/ce mois" — le comptent dès
-// maintenant), retire le souhait de la liste (plus d'état "Trouvé" à
-// conserver puisqu'il devient un objet à part entière), puis ouvre sa fiche
-// pour compléter le reste (région, prix, photos…). Les photos du souhait ne
-// sont PAS reprises automatiquement (pas de lien entre les deux tables de
-// stockage) — l'utilisateur les réenverra sur la fiche.
+// Crée directement l'objet correspondant dans le catalogue en reprenant tel
+// quel tout ce que le souhait a déjà renseigné (mêmes champs, voir
+// WISH_OBJET_SHARED_COLS — le formulaire souhait est désormais identique à
+// celui d'un objet), et ajoute la date d'acquisition = aujourd'hui (pour que
+// les stats du tableau de bord — "Derniers ajoutés", "Acquisitions cette
+// année/ce mois" — le comptent dès maintenant, un champ "possession" que le
+// souhait n'a justement pas). Retire ensuite le souhait de la liste (plus
+// d'état "Trouvé" à conserver puisqu'il devient un objet à part entière),
+// puis ouvre sa fiche pour compléter le reste (provenance, prix, photos…).
+// Les photos du souhait ne sont PAS reprises automatiquement (pas de lien
+// entre les deux tables de stockage) — l'utilisateur les réenverra sur la fiche.
 async function markWishFoundAndCreate(w){
   const today = new Date().toISOString().slice(0,10);
-  const { data, error } = await sb.from('objets').insert({
-    titre: w.titre,
-    type_objet: w.type_objet || null,
-    date_acquisition: today,
-  }).select().single();
+  const payload = { date_acquisition: today };
+  WISH_OBJET_SHARED_COLS.forEach(c=>{ payload[c] = (w[c] !== undefined && w[c] !== '') ? w[c] : null; });
+  const { data, error } = await sb.from('objets').insert(payload).select().single();
   if(error){
     if(typeof showToast === 'function') showToast("Erreur lors de la création de l'objet : " + error.message, 'error');
     return;
@@ -5022,29 +5112,73 @@ async function handleDeleteWish(id){
   await loadWishlist();
 }
 
-// Construit la page d'ajout/modification d'un souhait — même principe que
-// openForm() pour un objet (form-card/form-section/form-grid, une vraie vue
-// plutôt qu'une popin). w=null -> création (section photos masquée : il faut
-// un id de souhait déjà enregistré pour y associer des photos, exactement
-// comme un objet doit déjà exister avant d'avoir des photos sur sa fiche).
+// Construit la page d'ajout/modification d'un souhait — repris à l'identique
+// du formulaire d'un objet du catalogue (openForm() : mêmes sections
+// Général/Description/Tirage/Rareté & état, mêmes champs, même composant
+// fieldHtml() — via wishFieldHtml() pour éviter toute collision d'id avec le
+// formulaire objet), plus "Référence catalogue" ajoutée dans "Général" (ce
+// n'est pas un champ de possession). Volontairement absents : le reste de la
+// section "Informations privées" de l'objet (provenance, date d'acquisition,
+// prix d'achat, date d'estimation) ainsi que emplacement physique et
+// visibilité, qui eux ne concernent qu'un objet déjà possédé — un souhait ne
+// l'est pas encore. w=null -> création (section photos masquée : il faut un
+// id de souhait déjà enregistré pour y associer des photos, exactement comme
+// un objet doit déjà exister avant d'avoir des photos sur sa fiche).
 function openWishForm(w){
   WISH_EDIT_ID = w ? w.id : null;
+  const o = w || {};
+  const REGION_VALUES = [...new Set((typeof ALL_OBJETS !== 'undefined' ? ALL_OBJETS : []).map(x=>x.region).filter(Boolean).concat(o.region ? [o.region] : []))].sort((a,b)=>a.localeCompare(b,'fr'));
+  const MOUVEMENT_VALUES = [...new Set((typeof ALL_OBJETS !== 'undefined' ? ALL_OBJETS : []).map(x=>x.mouvement).filter(Boolean).concat(o.mouvement ? [o.mouvement] : []))].sort((a,b)=>a.localeCompare(b,'fr'));
   document.getElementById('wishFormContent').innerHTML = `
     <div class="form-card">
       <h2>${w ? 'Modifier le souhait' : 'Nouveau souhait'}</h2>
+
       <div class="form-section">
         <h4>Général</h4>
         <div class="form-grid">
-          <div class="form-field"><label>Titre / description</label><input type="text" id="wf_titre" placeholder="ex : Insigne du réseau Buckmaster" value="${w ? esc(w.titre||'') : ''}"></div>
-          <div class="form-field"><label>Type d'objet</label><select id="wf_type_objet"></select></div>
-          <div class="form-field"><label>Priorité</label><select id="wf_priorite">
-            <option value="Haute" ${w && w.priorite==='Haute' ? 'selected' : ''}>Haute</option>
-            <option value="Moyenne" ${!w || !w.priorite || w.priorite==='Moyenne' ? 'selected' : ''}>Moyenne</option>
-            <option value="Basse" ${w && w.priorite==='Basse' ? 'selected' : ''}>Basse</option>
-          </select></div>
-          <div class="form-field"><label>Budget cible (€)</label><input type="number" id="wf_budget" step="0.01" min="0" placeholder="ex : 150" value="${(w && w.budget_cible != null) ? w.budget_cible : ''}"></div>
-          <div class="form-field full"><label>Piste / lien</label><input type="text" id="wf_piste" placeholder="ex : vu sur Delcampe, contact d'un collectionneur…" value="${w ? esc(w.piste||'') : ''}"></div>
-          <div class="form-field full"><label>Notes</label><textarea id="wf_notes">${w ? esc(w.notes||'') : ''}</textarea></div>
+          ${wishFieldHtml('type_objet',"Type d'objet",'select',o.type_objet,TYPE_OBJET_OPTIONS)}
+          ${wishFieldHtml('titre','Titre','text',o.titre)}
+          ${wishFieldHtml('reference_catalogue','Référence catalogue','text',o.reference_catalogue)}
+          ${wishFieldHtml('region','Région','select',o.region,REGION_VALUES)}
+          ${wishFieldHtml('departement','Département','text',o.departement)}
+          ${wishFieldHtml('mouvement','Mouvement','select',o.mouvement,MOUVEMENT_VALUES)}
+        </div>
+      </div>
+
+      <div class="form-section">
+        <h4>Description</h4>
+        <div class="form-grid">
+          ${wishFieldHtml('infos','Infos / historique','textarea',o.infos)}
+          ${wishFieldHtml('details','Détails','textarea',o.details)}
+          ${wishFieldHtml('taille','Taille','text',o.taille)}
+          ${wishFieldHtml('fabricant','Fabricant','text',o.fabricant)}
+        </div>
+      </div>
+
+      <div class="form-section">
+        <h4>Tirage</h4>
+        <div class="form-grid">
+          ${wishFieldHtml('type_tirage','Type de tirage','select',o.type_tirage,TYPE_TIRAGE_OPTIONS)}
+          ${wishFieldHtml('quantite_tirage','Quantité','number',o.quantite_tirage)}
+          ${wishFieldHtml('detail_tirage','Détail (texte libre)','text',o.detail_tirage)}
+          ${wishFieldHtml('date_fabrication','Date de fabrication','date',o.date_fabrication)}
+        </div>
+      </div>
+
+      <div class="form-section">
+        <h4>Rareté &amp; état</h4>
+        <div class="form-grid">
+          ${wishFieldHtml('indice_rarete','Indice de rareté','select',o.indice_rarete,['',...RARETE_OPTIONS])}
+          ${wishFieldHtml('etat_conservation','État de conservation','select',o.etat_conservation,['',...ETAT_OPTIONS])}
+          ${wishFieldHtml('type_variante','Type de variante','text',o.type_variante)}
+          ${wishFieldHtml('authenticite','Authenticité','select',o.authenticite,['',...AUTHENTICITE_OPTIONS])}
+        </div>
+      </div>
+
+      <div class="form-section">
+        <h4>Autres</h4>
+        <div class="form-grid">
+          ${wishFieldHtml('notes','Notes','textarea',o.notes)}
         </div>
       </div>
 
@@ -5066,10 +5200,7 @@ function openWishForm(w){
     </div>
   `;
 
-  const typeSelect = document.getElementById('wf_type_objet');
-  if(typeSelect && typeof TYPE_OBJET_OPTIONS !== 'undefined'){
-    typeSelect.innerHTML = '<option value="">—</option>' + TYPE_OBJET_OPTIONS.map(t=>`<option value="${esc(t)}" ${w && w.type_objet===t ? 'selected' : ''}>${esc(t)}</option>`).join('');
-  }
+  wireTirageAutofillFor('wf_');
   document.getElementById('wishSaveBtn').addEventListener('click', saveWish);
   if(w) renderWishPhotoGallery(w.id);
 
@@ -5242,20 +5373,34 @@ async function handleWishUploadChange(event, wishId, label, photoId){
   }
 }
 
+// Champs communs au formulaire objet ET au formulaire souhait (voir
+// openForm()/openWishForm()) — tout sauf les champs de possession
+// (provenance, date d'acquisition, prix d'achat, date d'estimation,
+// emplacement physique, visibilité) qui ne concernent qu'un objet déjà
+// possédé. "reference_catalogue" fait exception et reste ici : une
+// référence de catalogue existe indépendamment du fait qu'on possède déjà
+// la pièce. Utilisé par saveWish() ci-dessous ET par
+// markWishFoundAndCreate() pour reprendre tel quel tout ce qu'un souhait a
+// déjà renseigné au moment de sa conversion en objet.
+const WISH_OBJET_SHARED_COLS = ['type_objet','titre','reference_catalogue','region','departement','mouvement','infos','details','taille',
+  'fabricant','type_tirage','quantite_tirage','detail_tirage','date_fabrication','indice_rarete','etat_conservation',
+  'type_variante','authenticite','notes'];
+
 // Enregistre le formulaire (insert ou update selon WISH_EDIT_ID) puis revient
 // à la liste des souhaits (rechargée avec le résultat).
 async function saveWish(){
-  const payload = {
-    titre: document.getElementById('wf_titre').value.trim(),
-    type_objet: document.getElementById('wf_type_objet').value || null,
-    priorite: document.getElementById('wf_priorite').value || 'Moyenne',
-    budget_cible: document.getElementById('wf_budget').value !== '' ? parseFloat(document.getElementById('wf_budget').value) : null,
-    piste: document.getElementById('wf_piste').value.trim() || null,
-    notes: document.getElementById('wf_notes').value.trim() || null,
-  };
-  if(!payload.titre){
+  const payload = {};
+  WISH_OBJET_SHARED_COLS.forEach(c=>{
+    const el = document.getElementById('wf_'+c);
+    let v = el.value.trim();
+    if(v === '') v = null;
+    if(c === 'quantite_tirage' && v!==null) v = parseInt(v,10);
+    payload[c] = v;
+  });
+
+  if(!payload.titre || !payload.type_objet){
     const msg = document.getElementById('wishFormMsg');
-    msg.textContent = 'Le titre est obligatoire.';
+    msg.textContent = "Le type d'objet et le titre sont obligatoires.";
     msg.classList.add('error');
     return;
   }
@@ -5289,6 +5434,26 @@ async function saveWish(){
 
   const newWishBtn = document.getElementById('newWishBtn');
   if(newWishBtn) newWishBtn.addEventListener('click', ()=> openWishForm(null));
+
+  // Tri et bascule cartes/tableau — même principe que #sortSelect et
+  // .view-toggle-btn du catalogue, mais sur des id/classes propres au
+  // souhait (voir le commentaire dans le HTML) : ALL_WISHLIST est déjà en
+  // mémoire, un simple renderWishlist() suffit, pas besoin de recharger.
+  const wishSortSelect = document.getElementById('wishSortSelect');
+  if(wishSortSelect){
+    wishSortSelect.addEventListener('change', e=>{
+      WISHLIST_SORT = e.target.value;
+      renderWishlist();
+    });
+  }
+  document.querySelectorAll('.wish-view-toggle-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      document.querySelectorAll('.wish-view-toggle-btn').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      WISHLIST_VIEW_MODE = btn.dataset.wishMode;
+      renderWishlist();
+    });
+  });
 
   // "← Annuler" — comme pour formBackBtn (objets), mais toujours vers la
   // liste des souhaits : un souhait n'a pas de fiche séparée, ce formulaire
