@@ -664,7 +664,6 @@
      .card-fields — également partagées avec l'objet) porte les 3 actions
      Trouvé/Modifier/Supprimer. */
   .wish-notes{font-size:12px; color:var(--ink-soft); line-height:1.4; margin:-6px 0 10px;}
-  .wish-mini .foot{margin-bottom:14px;}
 
   /* ---------- Modals ---------- */
   .modal-overlay{position:fixed; inset:0; background:rgba(5,4,2,.68); backdrop-filter:blur(6px); z-index:300; display:flex; align-items:center; justify-content:center; padding:20px;}
@@ -1439,12 +1438,15 @@ try{
           <button class="btn btn-primary" id="newWishBtn" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg> <span class="btn-label">Nouveau souhait</span></button>
         </div>
 
-        <!-- Même système de tri que le catalogue (sortItems(), réutilisé tel
-             quel) — sans "Date d'acquisition" qui n'a pas de sens pour un
-             souhait pas encore acquis. Id et classes propres au souhait
-             (wishSortSelect / wish-view-toggle-btn) plutôt que ceux du
-             catalogue (#sortSelect / .view-toggle-btn), pour ne jamais être
-             capturés par les écouteurs déjà attachés à ces sélecteurs. -->
+        <!-- Même système de tri et de filtre par type que le catalogue
+             (sortItems() réutilisé tel quel ; chips identiques à celles du
+             catalogue, mêmes libellés/ordre) — tri sans "Date d'acquisition"
+             qui n'a pas de sens pour un souhait pas encore acquis. Id et
+             attributs propres au souhait (wishSortSelect / wish-view-toggle-btn /
+             data-wish-filter) plutôt que ceux du catalogue (#sortSelect /
+             .view-toggle-btn / data-filter), pour ne jamais être capturés par
+             les écouteurs déjà attachés à ces sélecteurs — la classe .chip,
+             purement visuelle, reste elle partagée sans risque. -->
         <div class="cat-toolbar">
           <div class="cat-toolbar-left">
             <select id="wishSortSelect">
@@ -1455,6 +1457,17 @@ try{
               <option value="departement">Trier : Département</option>
               <option value="region">Trier : Région</option>
             </select>
+            <span class="chip active" data-wish-filter="Tous">Tous</span>
+            <span class="chip" data-wish-filter="Insigne">Insignes</span>
+            <span class="chip" data-wish-filter="Brassard">Brassards</span>
+            <span class="chip" data-wish-filter="Médaille">Médailles</span>
+            <span class="chip" data-wish-filter="Médaille de table">Médailles de table</span>
+            <span class="chip" data-wish-filter="Document">Documents</span>
+            <span class="chip" data-wish-filter="Livre">Livres</span>
+            <span class="chip" data-wish-filter="Porte-clés">Porte-clés</span>
+            <span class="chip" data-wish-filter="Breloque">Breloques</span>
+            <span class="chip" data-wish-filter="À classer">À classer</span>
+            <span class="chip" data-wish-filter="Divers">Divers</span>
           </div>
         </div>
 
@@ -4929,6 +4942,7 @@ let WISHLIST_LOADED = false;
 let WISH_EDIT_ID = null; // null = création, sinon id du souhait en cours de modification
 let WISHLIST_SORT = 'titre'; // même mécanisme que CURRENT_SORT/sortItems() du catalogue
 let WISHLIST_VIEW_MODE = 'cards'; // 'cards' | 'list' — même mécanisme que CATALOGUE_VIEW_MODE
+let WISHLIST_FILTER = 'Tous'; // même mécanisme que LAST_CAT_FILTER (chips data-wish-filter)
 
 async function loadWishlist(){
   const grid = document.getElementById('wishlistGrid');
@@ -4950,22 +4964,27 @@ async function loadWishlist(){
 // Un souhait marqué "Trouvé" est aussitôt converti en objet du catalogue et
 // retiré de cette liste (voir markWishFoundAndCreate()) : plus de statut à
 // filtrer, tout ce qui reste ici est par définition encore à rechercher.
-// Tri (sortItems(), partagé avec le catalogue) et bascule cartes/tableau
-// (WISHLIST_VIEW_MODE) repris du catalogue — pas de recherche/filtre ici,
-// une liste de souhaits reste courte, donc pas de "N sur M".
+// Filtre par type (chips data-wish-filter, comme .chip[data-filter] au
+// catalogue), tri (sortItems(), partagé) et bascule cartes/tableau
+// (WISHLIST_VIEW_MODE) repris du catalogue.
 function renderWishlist(){
   const grid = document.getElementById('wishlistGrid');
   if(!grid) return;
   const countEl = document.getElementById('wishlistCount');
+  const filtered = ALL_WISHLIST.filter(w => WISHLIST_FILTER === 'Tous' || w.type_objet === WISHLIST_FILTER);
   if(countEl){
-    countEl.innerHTML = `<b>${ALL_WISHLIST.length}</b> souhait${ALL_WISHLIST.length>1?'s':''} affiché${ALL_WISHLIST.length>1?'s':''}`;
+    countEl.innerHTML = filtered.length === ALL_WISHLIST.length
+      ? `<b>${filtered.length}</b> souhait${filtered.length>1?'s':''} affiché${filtered.length>1?'s':''}`
+      : `<b>${filtered.length}</b> souhait${filtered.length>1?'s':''} affiché${filtered.length>1?'s':''} sur ${ALL_WISHLIST.length}`;
   }
-  if(!ALL_WISHLIST.length){
+  if(!filtered.length){
     grid.className = 'wishlist-grid';
-    grid.innerHTML = `<div class="state-msg">Aucun souhait pour le moment — ajoutez la première pièce que vous recherchez.</div>`;
+    grid.innerHTML = ALL_WISHLIST.length
+      ? `<div class="state-msg">Aucun souhait ne correspond à ce filtre.</div>`
+      : `<div class="state-msg">Aucun souhait pour le moment — ajoutez la première pièce que vous recherchez.</div>`;
     return;
   }
-  const items = sortItems(ALL_WISHLIST, WISHLIST_SORT);
+  const items = sortItems(filtered, WISHLIST_SORT);
   grid.className = WISHLIST_VIEW_MODE === 'list' ? 'catalogue-list' : 'wishlist-grid';
   grid.innerHTML = items.map(WISHLIST_VIEW_MODE === 'list' ? wishListRowHtml : wishCardHtml).join('');
   hydrateCachedImages(grid);
@@ -4989,7 +5008,11 @@ function wishThumbTile(wishId, label){
   const match = shots.find(s=>s.label===label);
   if(match){
     const url = scalewayPublicUrl(match.storage_path);
-    return `<div class="thumb" onclick="event.stopPropagation(); openWishLightboxFor('${esc(wishId)}','${esc(match.id)}')">${cachedImgTag(url, `alt="${label}"`)}</div>`;
+    // Pas d'onclick ici (contrairement à la galerie de la fiche) : comme
+    // thumbHtml() du catalogue, la vignette sur la carte du LISTING ne fait
+    // qu'illustrer — cliquer dessus ouvre la fiche via la délégation de
+    // wireWishlist(), pas la visionneuse en grand.
+    return `<div class="thumb">${cachedImgTag(url, `alt="${label}"`)}</div>`;
   }
   return `<div class="thumb">${IMG_ICON}${label}</div>`;
 }
@@ -5122,9 +5145,9 @@ function openWishFiche(w){
 }
 
 // Construit et affiche la fiche détaillée d'un souhait — même structure que
-// showFiche() pour un objet (card/card-top/card-fields/field-grid), sans le
-// bloc "Informations privées" ni la mini-carte (champs qui n'existent pas
-// pour un souhait, voir WISH_OBJET_SHARED_COLS).
+// showFiche() pour un objet (card/card-top/card-fields/field-grid + mini-
+// carte du département), sans le bloc "Informations privées" (champs qui
+// n'existent pas pour un souhait, voir WISH_OBJET_SHARED_COLS).
 function showWishFiche(w){
   const c = document.getElementById('wishFicheContent');
   if(!c) return;
@@ -5163,6 +5186,7 @@ function showWishFiche(w){
           <div class="field-row full"><div class="k">Détails</div><div class="v rich-text">${formatRichText(w.details)}</div></div>
         </div>
       </div>
+      <div id="wishFicheMiniMap" class="obj-mini-map"></div>
     </div>
   `;
   document.getElementById('wishFicheFoundBtn').addEventListener('click', ()=> markWishFoundAndCreate(w));
@@ -5170,6 +5194,42 @@ function showWishFiche(w){
   document.getElementById('wishFicheDeleteBtn').addEventListener('click', ()=> handleDeleteWish(w.id));
   renderWishPhotoGallery(w.id);
   hydrateCachedImages(c);
+  renderWishFicheMiniMap(w.id, w.departement);
+}
+
+// Mini-carte de la fiche d'un souhait — même principe que
+// renderObjectMiniMap() pour un objet (centrée sur le département renseigné,
+// via le même cache de centroïdes), avec sa propre instance Leaflet
+// (wishFicheMiniMapInstance) pour ne pas interférer avec celle de la fiche
+// objet (objMiniMapInstance) — les deux <div> existent dans le DOM en même
+// temps, seul l'un des deux est visible à la fois.
+let wishFicheMiniMapInstance = null;
+
+async function renderWishFicheMiniMap(wishId, depString){
+  const code = extractDeptCode((depString||'').split(';')[0]);
+  const el = document.getElementById('wishFicheMiniMap');
+  if(!el) return;
+  if(wishFicheMiniMapInstance){ wishFicheMiniMapInstance.remove(); wishFicheMiniMapInstance = null; }
+  if(!code){
+    el.innerHTML = '<div class="state-msg">Aucun département renseigné</div>';
+    return;
+  }
+  el.innerHTML = '<div class="state-msg">Chargement de la carte…</div>';
+  const center = await getDeptCentroid(code);
+  if(!document.body.contains(el) || CURRENT_WISH_FICHE_ID !== wishId) return; // la fiche a changé entre-temps
+  if(!center){
+    el.innerHTML = '<div class="state-msg">Carte indisponible</div>';
+    return;
+  }
+  el.innerHTML = '';
+  wishFicheMiniMapInstance = L.map(el, {
+    zoomControl:true, scrollWheelZoom:false
+  }).setView(center, 8);
+  L.tileLayer(tileUrlFor(document.body.classList.contains('dark')), {
+    attribution:'© OpenStreetMap contributors © CARTO',
+    subdomains:'abcd', maxZoom:19
+  }).addTo(wishFicheMiniMapInstance);
+  L.marker(center, { icon: objMapPinIcon() }).addTo(wishFicheMiniMapInstance);
 }
 
 // Construit la page d'ajout/modification d'un souhait — repris à l'identique
@@ -5515,6 +5575,18 @@ async function saveWish(){
       document.querySelectorAll('.wish-view-toggle-btn').forEach(b=>b.classList.remove('active'));
       btn.classList.add('active');
       WISHLIST_VIEW_MODE = btn.dataset.wishMode;
+      renderWishlist();
+    });
+  });
+
+  // Chips de filtre par type — même principe que .chip[data-filter] du
+  // catalogue, mais sur data-wish-filter pour ne jamais être capturées par
+  // l'écouteur déjà attaché à .chip[data-filter].
+  document.querySelectorAll('.chip[data-wish-filter]').forEach(chip=>{
+    chip.addEventListener('click', ()=>{
+      document.querySelectorAll('.chip[data-wish-filter]').forEach(c=>c.classList.remove('active'));
+      chip.classList.add('active');
+      WISHLIST_FILTER = chip.dataset.wishFilter;
       renderWishlist();
     });
   });
