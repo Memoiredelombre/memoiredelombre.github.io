@@ -1449,6 +1449,12 @@ try{
              purement visuelle, reste elle partagée sans risque. -->
         <div class="cat-toolbar">
           <div class="cat-toolbar-left">
+            <!-- Recherche dédiée aux souhaits (id propre, .nav-search
+                 réutilisée pour le style uniquement) : contrairement au
+                 catalogue, dont la recherche vit dans la topbar et reste
+                 globale à l'app, celle-ci est intégrée à la barre d'outils de
+                 cette page et ne filtre que ALL_WISHLIST (voir renderWishlist()). -->
+            <input type="text" id="wishSearchInput" class="nav-search" placeholder="Rechercher un souhait…" style="width:220px;">
             <select id="wishSortSelect">
               <option value="titre">Trier : Titre (A→Z)</option>
               <option value="rarete">Trier : Rareté</option>
@@ -4943,6 +4949,7 @@ let WISH_EDIT_ID = null; // null = création, sinon id du souhait en cours de mo
 let WISHLIST_SORT = 'titre'; // même mécanisme que CURRENT_SORT/sortItems() du catalogue
 let WISHLIST_VIEW_MODE = 'cards'; // 'cards' | 'list' — même mécanisme que CATALOGUE_VIEW_MODE
 let WISHLIST_FILTER = 'Tous'; // même mécanisme que LAST_CAT_FILTER (chips data-wish-filter)
+let WISHLIST_QUERY = ''; // recherche texte propre aux souhaits (#wishSearchInput)
 
 async function loadWishlist(){
   const grid = document.getElementById('wishlistGrid');
@@ -4964,14 +4971,21 @@ async function loadWishlist(){
 // Un souhait marqué "Trouvé" est aussitôt converti en objet du catalogue et
 // retiré de cette liste (voir markWishFoundAndCreate()) : plus de statut à
 // filtrer, tout ce qui reste ici est par définition encore à rechercher.
-// Filtre par type (chips data-wish-filter, comme .chip[data-filter] au
-// catalogue), tri (sortItems(), partagé) et bascule cartes/tableau
-// (WISHLIST_VIEW_MODE) repris du catalogue.
+// Recherche texte (WISHLIST_QUERY, mêmes champs que matchQuery du catalogue :
+// titre/région/fabricant/département), filtre par type (chips
+// data-wish-filter, comme .chip[data-filter] au catalogue), tri
+// (sortItems(), partagé) et bascule cartes/tableau (WISHLIST_VIEW_MODE)
+// repris du catalogue.
 function renderWishlist(){
   const grid = document.getElementById('wishlistGrid');
   if(!grid) return;
   const countEl = document.getElementById('wishlistCount');
-  const filtered = ALL_WISHLIST.filter(w => WISHLIST_FILTER === 'Tous' || w.type_objet === WISHLIST_FILTER);
+  const q = WISHLIST_QUERY.trim().toLowerCase();
+  const filtered = ALL_WISHLIST.filter(w=>{
+    const matchType = WISHLIST_FILTER === 'Tous' || w.type_objet === WISHLIST_FILTER;
+    const matchQuery = !q || `${w.titre} ${w.region||''} ${w.fabricant||''} ${w.departement||''}`.toLowerCase().includes(q);
+    return matchType && matchQuery;
+  });
   if(countEl){
     countEl.innerHTML = filtered.length === ALL_WISHLIST.length
       ? `<b>${filtered.length}</b> souhait${filtered.length>1?'s':''} affiché${filtered.length>1?'s':''}`
@@ -4980,7 +4994,7 @@ function renderWishlist(){
   if(!filtered.length){
     grid.className = 'wishlist-grid';
     grid.innerHTML = ALL_WISHLIST.length
-      ? `<div class="state-msg">Aucun souhait ne correspond à ce filtre.</div>`
+      ? `<div class="state-msg">Aucun souhait ne correspond à cette recherche.</div>`
       : `<div class="state-msg">Aucun souhait pour le moment — ajoutez la première pièce que vous recherchez.</div>`;
     return;
   }
@@ -5559,10 +5573,18 @@ async function saveWish(){
   const newWishBtn = document.getElementById('newWishBtn');
   if(newWishBtn) newWishBtn.addEventListener('click', ()=> openWishForm(null));
 
-  // Tri et bascule cartes/tableau — même principe que #sortSelect et
-  // .view-toggle-btn du catalogue, mais sur des id/classes propres au
-  // souhait (voir le commentaire dans le HTML) : ALL_WISHLIST est déjà en
-  // mémoire, un simple renderWishlist() suffit, pas besoin de recharger.
+  // Recherche, tri et bascule cartes/tableau — même principe que
+  // #searchInput/#sortSelect/.view-toggle-btn du catalogue, mais sur des
+  // id/classes propres au souhait (voir le commentaire dans le HTML) :
+  // ALL_WISHLIST est déjà en mémoire, un simple renderWishlist() suffit, pas
+  // besoin de recharger.
+  const wishSearchInput = document.getElementById('wishSearchInput');
+  if(wishSearchInput){
+    wishSearchInput.addEventListener('input', e=>{
+      WISHLIST_QUERY = e.target.value;
+      renderWishlist();
+    });
+  }
   const wishSortSelect = document.getElementById('wishSortSelect');
   if(wishSortSelect){
     wishSortSelect.addEventListener('change', e=>{
