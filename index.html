@@ -3087,6 +3087,11 @@ const ETAT_OPTIONS = ['Neuf','Très bon état','Bon état','Usure légère','Ab�
 const AUTHENTICITE_OPTIONS = ['Authentique','Copie / Reproduction','Refrappe','Faux / Contrefaçon','À vérifier'];
 const TYPE_OBJET_OPTIONS = ['Insigne','Brassard','Médaille','Médaille de table','Livre','Document','Porte-clés','Breloque','À classer','Divers'];
 const TYPE_TIRAGE_OPTIONS = ['','TE','TC','Mixte','Inconnu'];
+// Valeurs de "Région" toujours proposées dans le select, même si aucun objet/
+// souhait ne les utilise encore (contrairement au reste de la liste,
+// construite dynamiquement à partir de ALL_OBJETS) — utilisée par openForm()
+// ET openWishForm() pour rester cohérente entre objet et souhait.
+const REGION_BASE_VALUES = ['A1','A2','A3','A5'];
 
 // Construit le texte de "Détail tirage" à partir du type et de la quantité,
 // pour alimenter automatiquement ce champ dans le formulaire.
@@ -3164,7 +3169,9 @@ function openForm(mode, objet){
   // Option vide en tête ('' -> affichée "—" par fieldHtml), comme pour le
   // formulaire de souhait : sans elle, le select forçait toujours la
   // première région de la liste par défaut, impossible à laisser vide.
-  const REGION_VALUES = ['', ...[...new Set((typeof ALL_OBJETS !== 'undefined' ? ALL_OBJETS : []).map(x=>x.region).filter(Boolean).concat(o.region ? [o.region] : []))].sort((a,b)=>a.localeCompare(b,'fr'))];
+  // REGION_BASE_VALUES (A1/A2/A3/A5) toujours incluses, même si aucun objet
+  // existant ne les utilise encore.
+  const REGION_VALUES = ['', ...[...new Set(REGION_BASE_VALUES.concat((typeof ALL_OBJETS !== 'undefined' ? ALL_OBJETS : []).map(x=>x.region)).filter(Boolean).concat(o.region ? [o.region] : []))].sort((a,b)=>a.localeCompare(b,'fr'))];
   const MOUVEMENT_VALUES = [...new Set((typeof ALL_OBJETS !== 'undefined' ? ALL_OBJETS : []).map(x=>x.mouvement).filter(Boolean).concat(o.mouvement ? [o.mouvement] : []))].sort((a,b)=>a.localeCompare(b,'fr'));
   document.getElementById('formContent').innerHTML = `
     <div class="form-card">
@@ -5273,7 +5280,10 @@ function openWishForm(w){
   // un objet déjà possédé, un souhait peut très bien ne pas encore avoir de
   // région connue — sans cette option, le select forçait toujours la
   // première région de la liste par défaut, impossible à laisser vide.
-  const REGION_VALUES = ['', ...[...new Set((typeof ALL_OBJETS !== 'undefined' ? ALL_OBJETS : []).map(x=>x.region).filter(Boolean).concat(o.region ? [o.region] : []))].sort((a,b)=>a.localeCompare(b,'fr'))];
+  // REGION_BASE_VALUES (A1/A2/A3/A5) toujours incluses, même si aucun objet
+  // existant ne les utilise encore (même liste que openForm(), pour rester
+  // cohérente entre objet et souhait).
+  const REGION_VALUES = ['', ...[...new Set(REGION_BASE_VALUES.concat((typeof ALL_OBJETS !== 'undefined' ? ALL_OBJETS : []).map(x=>x.region)).filter(Boolean).concat(o.region ? [o.region] : []))].sort((a,b)=>a.localeCompare(b,'fr'))];
   const MOUVEMENT_VALUES = [...new Set((typeof ALL_OBJETS !== 'undefined' ? ALL_OBJETS : []).map(x=>x.mouvement).filter(Boolean).concat(o.mouvement ? [o.mouvement] : []))].sort((a,b)=>a.localeCompare(b,'fr'));
   document.getElementById('wishFormContent').innerHTML = `
     <div class="form-card">
