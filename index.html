@@ -5192,6 +5192,7 @@ function showWishFiche(w){
           <div class="field-row"><div class="k">Région</div><div class="v">${esc(w.region) || '—'}</div></div>
           <div class="field-row"><div class="k">Département</div><div class="v">${esc(w.departement) || '—'}</div></div>
           <div class="field-row"><div class="k">Mouvement</div><div class="v">${esc(w.mouvement) || '—'}</div></div>
+          <div class="field-row"><div class="k">Détails</div><div class="v">${esc(w.details) || '—'}</div></div>
           <div class="field-row"><div class="k">Taille</div><div class="v mono">${esc(w.taille) || '—'}</div></div>
           <div class="field-row"><div class="k">Fabricant</div><div class="v">${esc(w.fabricant) || '—'}</div></div>
           <div class="field-row"><div class="k">Détail tirage</div><div class="v">${esc(w.detail_tirage) || '—'}</div></div>
@@ -5199,9 +5200,8 @@ function showWishFiche(w){
           <div class="field-row"><div class="k">Type de variante</div><div class="v">${esc(w.type_variante) || '—'}</div></div>
           <div class="field-row"><div class="k">Authenticité</div><div class="v">${esc(w.authenticite) || '—'}</div></div>
           <div class="field-row"><div class="k">État de conservation</div><div class="v">${esc(w.etat_conservation) || '—'}</div></div>
-          <div class="field-row full"><div class="k">Notes</div><div class="v rich-text">${formatRichText(w.notes)}</div></div>
           <div class="field-row full"><div class="k">Infos / historique</div><div class="v rich-text">${formatRichText(w.infos)}</div></div>
-          <div class="field-row full"><div class="k">Détails</div><div class="v rich-text">${formatRichText(w.details)}</div></div>
+          <div class="field-row full"><div class="k">Notes</div><div class="v rich-text">${formatRichText(w.notes)}</div></div>
         </div>
       </div>
       <div id="wishFicheMiniMap" class="obj-mini-map"></div>
