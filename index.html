@@ -3090,14 +3090,18 @@ const TYPE_TIRAGE_OPTIONS = ['','TE','TC','Mixte','Inconnu'];
 
 // Construit le texte de "Détail tirage" à partir du type et de la quantité,
 // pour alimenter automatiquement ce champ dans le formulaire.
+// Format court "TYPE = N" (ex: "TC = 600") plutôt que "TYPE — N exemplaire(s)"
+// — utilisée par wireTirageAutofillFor() pour le formulaire d'un objet ET
+// celui d'un souhait (même fonction partagée), pour que le "Détail tirage"
+// d'une fiche de souhait s'affiche exactement comme celui d'une fiche objet.
 function computeDetailTirage(type, quantite){
   const parts = [];
   if(type) parts.push(type);
   const qNum = parseInt(quantite, 10);
   if(quantite !== '' && quantite !== null && quantite !== undefined && !isNaN(qNum)){
-    parts.push(`${qNum} exemplaire${qNum > 1 ? 's' : ''}`);
+    parts.push(`${qNum}`);
   }
-  return parts.join(' — ');
+  return parts.join(' = ');
 }
 const VISIBILITE_OPTIONS = ['Partageable','Privé'];
 
