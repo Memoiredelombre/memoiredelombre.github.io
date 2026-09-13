@@ -3091,7 +3091,7 @@ const TYPE_TIRAGE_OPTIONS = ['','TE','TC','Mixte','Inconnu'];
 // souhait ne les utilise encore (contrairement au reste de la liste,
 // construite dynamiquement à partir de ALL_OBJETS) — utilisée par openForm()
 // ET openWishForm() pour rester cohérente entre objet et souhait.
-const REGION_BASE_VALUES = ['A1','A2','A3','A5'];
+const REGION_BASE_VALUES = ['A1','A2','A3','A3 / A4','A4','A5'];
 
 // Construit le texte de "Détail tirage" à partir du type et de la quantité,
 // pour alimenter automatiquement ce champ dans le formulaire.
@@ -3169,7 +3169,7 @@ function openForm(mode, objet){
   // Option vide en tête ('' -> affichée "—" par fieldHtml), comme pour le
   // formulaire de souhait : sans elle, le select forçait toujours la
   // première région de la liste par défaut, impossible à laisser vide.
-  // REGION_BASE_VALUES (A1/A2/A3/A5) toujours incluses, même si aucun objet
+  // REGION_BASE_VALUES (A1/A2/A3/A4/A5) toujours incluses, même si aucun objet
   // existant ne les utilise encore.
   const REGION_VALUES = ['', ...[...new Set(REGION_BASE_VALUES.concat((typeof ALL_OBJETS !== 'undefined' ? ALL_OBJETS : []).map(x=>x.region)).filter(Boolean).concat(o.region ? [o.region] : []))].sort((a,b)=>a.localeCompare(b,'fr'))];
   const MOUVEMENT_VALUES = [...new Set((typeof ALL_OBJETS !== 'undefined' ? ALL_OBJETS : []).map(x=>x.mouvement).filter(Boolean).concat(o.mouvement ? [o.mouvement] : []))].sort((a,b)=>a.localeCompare(b,'fr'));
@@ -5280,7 +5280,7 @@ function openWishForm(w){
   // un objet déjà possédé, un souhait peut très bien ne pas encore avoir de
   // région connue — sans cette option, le select forçait toujours la
   // première région de la liste par défaut, impossible à laisser vide.
-  // REGION_BASE_VALUES (A1/A2/A3/A5) toujours incluses, même si aucun objet
+  // REGION_BASE_VALUES (A1/A2/A3/A4/A5) toujours incluses, même si aucun objet
   // existant ne les utilise encore (même liste que openForm(), pour rester
   // cohérente entre objet et souhait).
   const REGION_VALUES = ['', ...[...new Set(REGION_BASE_VALUES.concat((typeof ALL_OBJETS !== 'undefined' ? ALL_OBJETS : []).map(x=>x.region)).filter(Boolean).concat(o.region ? [o.region] : []))].sort((a,b)=>a.localeCompare(b,'fr'))];
