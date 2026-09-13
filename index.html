@@ -3161,7 +3161,10 @@ function openForm(mode, objet){
   FORM_MODE = mode;
   FORM_UID = objet ? objet.uid : null;
   const o = objet || {};
-  const REGION_VALUES = [...new Set((typeof ALL_OBJETS !== 'undefined' ? ALL_OBJETS : []).map(x=>x.region).filter(Boolean).concat(o.region ? [o.region] : []))].sort((a,b)=>a.localeCompare(b,'fr'));
+  // Option vide en tête ('' -> affichée "—" par fieldHtml), comme pour le
+  // formulaire de souhait : sans elle, le select forçait toujours la
+  // première région de la liste par défaut, impossible à laisser vide.
+  const REGION_VALUES = ['', ...[...new Set((typeof ALL_OBJETS !== 'undefined' ? ALL_OBJETS : []).map(x=>x.region).filter(Boolean).concat(o.region ? [o.region] : []))].sort((a,b)=>a.localeCompare(b,'fr'))];
   const MOUVEMENT_VALUES = [...new Set((typeof ALL_OBJETS !== 'undefined' ? ALL_OBJETS : []).map(x=>x.mouvement).filter(Boolean).concat(o.mouvement ? [o.mouvement] : []))].sort((a,b)=>a.localeCompare(b,'fr'));
   document.getElementById('formContent').innerHTML = `
     <div class="form-card">
@@ -5180,8 +5183,8 @@ function showWishFiche(w){
         <div class="header-actions">
           <div class="rarity-pill"><span class="dots dots-lg">${dotsHtml(raretePos(w.indice_rarete))}</span></div>
           <button class="btn btn-primary" id="wishFicheFoundBtn" type="button" title="Créer l'objet dans le catalogue">${CHECK_ICON} Trouvé</button>
-          <button class="btn btn-secondary" id="wishFicheEditBtn" type="button">Modifier</button>
           <button class="btn btn-danger" id="wishFicheDeleteBtn" type="button">Supprimer</button>
+          <button class="btn btn-secondary" id="wishFicheEditBtn" type="button">Modifier</button>
         </div>
       </div>
       <div id="wishFicheGalleryWrap" style="margin:20px 26px 0;"></div>
@@ -5266,7 +5269,11 @@ async function renderWishFicheMiniMap(wishId, depString){
 function openWishForm(w){
   WISH_EDIT_ID = w ? w.id : null;
   const o = w || {};
-  const REGION_VALUES = [...new Set((typeof ALL_OBJETS !== 'undefined' ? ALL_OBJETS : []).map(x=>x.region).filter(Boolean).concat(o.region ? [o.region] : []))].sort((a,b)=>a.localeCompare(b,'fr'));
+  // Option vide en tête ('' -> affichée "—" par fieldHtml) : contrairement à
+  // un objet déjà possédé, un souhait peut très bien ne pas encore avoir de
+  // région connue — sans cette option, le select forçait toujours la
+  // première région de la liste par défaut, impossible à laisser vide.
+  const REGION_VALUES = ['', ...[...new Set((typeof ALL_OBJETS !== 'undefined' ? ALL_OBJETS : []).map(x=>x.region).filter(Boolean).concat(o.region ? [o.region] : []))].sort((a,b)=>a.localeCompare(b,'fr'))];
   const MOUVEMENT_VALUES = [...new Set((typeof ALL_OBJETS !== 'undefined' ? ALL_OBJETS : []).map(x=>x.mouvement).filter(Boolean).concat(o.mouvement ? [o.mouvement] : []))].sort((a,b)=>a.localeCompare(b,'fr'));
   document.getElementById('wishFormContent').innerHTML = `
     <div class="form-card">
