@@ -3293,18 +3293,23 @@ async function saveObjet(){
   }
 
   const btn = document.getElementById('saveObjetBtn');
+  // Le texte de chargement remplace celui du bouton (plutôt qu'un message à
+  // côté, qui débordait du cadre en mobile faute de place) — même correctif
+  // que saveWish() ; restauré si erreur, sinon inutile, la page change.
+  const btnOriginalText = btn.textContent;
   btn.disabled = true;
-  document.getElementById('formMsg').textContent = 'Enregistrement…';
+  btn.textContent = 'Enregistrement…';
+  document.getElementById('formMsg').textContent = '';
   document.getElementById('formMsg').classList.remove('error');
 
   let resultUid;
   if(FORM_MODE==='edit'){
     const { error } = await sb.from('objets').update(payload).eq('uid', FORM_UID);
-    if(error){ document.getElementById('formMsg').textContent = 'Erreur : '+error.message; document.getElementById('formMsg').classList.add('error'); btn.disabled=false; return; }
+    if(error){ document.getElementById('formMsg').textContent = 'Erreur : '+error.message; document.getElementById('formMsg').classList.add('error'); btn.disabled=false; btn.textContent=btnOriginalText; return; }
     resultUid = FORM_UID;
   } else {
     const { data, error } = await sb.from('objets').insert(payload).select().single();
-    if(error){ document.getElementById('formMsg').textContent = 'Erreur : '+error.message; document.getElementById('formMsg').classList.add('error'); btn.disabled=false; return; }
+    if(error){ document.getElementById('formMsg').textContent = 'Erreur : '+error.message; document.getElementById('formMsg').classList.add('error'); btn.disabled=false; btn.textContent=btnOriginalText; return; }
     resultUid = data.uid;
   }
 
@@ -3490,7 +3495,18 @@ document.getElementById('advSearchReset').addEventListener('click', ()=>{
   renderGrid(active, document.getElementById('searchInput').value);
 });
 try{
-  history.replaceState({view:'dashboard', uid:null}, '', window.location.pathname);
+  // Etat initial de l'historique, SANS toucher à l'URL affichée : les
+  // cartes/lignes du catalogue sont déjà de vrais liens <a href="?obj=uid">
+  // (voir cardHtml()/listRowHtml()), donc un clic droit "Ouvrir le lien dans
+  // un nouvel onglet" (ou Ctrl/Cmd/clic milieu, laissés volontairement au
+  // navigateur par wireGridItem()) ouvre cette URL telle quelle. Si on la
+  // réécrivait ici en juste window.location.pathname (comme avant), le
+  // paramètre ?obj= serait effacé avant même que loadAll() plus bas n'ait pu
+  // le lire pour ouvrir la fiche correspondante — ce nouvel onglet retombait
+  // alors sur le tableau de bord au lieu de la fiche visée.
+  const initParams = new URLSearchParams(window.location.search);
+  const initObj = initParams.get('obj');
+  history.replaceState({view: initObj ? 'fiche' : 'dashboard', uid: initObj || null}, '', window.location.href);
 }catch(err){
   // Contexte restreint (ex: aperçu en iframe) — sans impact sur le reste de l'appli.
 }
