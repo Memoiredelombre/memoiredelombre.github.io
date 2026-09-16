@@ -834,6 +834,15 @@
     .card-top .header-actions{width:100%; flex-wrap:nowrap; gap:6px; justify-content:flex-end;}
     .card-top .rarity-pill{padding:0 12px; height:36px; gap:6px;}
     .card-top .header-actions .btn{padding:0 12px; font-size:12.5px; flex:0 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis;}
+    /* Fiche de souhait : 4 éléments dans .header-actions (indice de rareté +
+       3 CTA Trouvé/Supprimer/Modifier) au lieu de 3 pour un objet (indice +
+       Modifier + Supprimer injecté) — trop pour tenir sur une seule ligne
+       sans être écrasés. L'indice de rareté passe seul sur sa ligne, les 3
+       CTA se partagent la ligne suivante à parts égales. Ciblé sur
+       #view-wish-fiche uniquement pour ne rien changer à la fiche objet. */
+    #view-wish-fiche .card-top .header-actions{flex-wrap:wrap;}
+    #view-wish-fiche .card-top .rarity-pill{flex:1 1 100%; justify-content:center;}
+    #view-wish-fiche .card-top .header-actions .btn{flex:1 1 0; overflow:visible; text-overflow:clip;}
   }
 
   .card-fields{padding:22px 26px;}
@@ -874,6 +883,12 @@
   .extra-photos-row{display:flex; flex-wrap:wrap; gap:10px; margin-bottom:14px;}
   .photo-tile.small{width:90px; height:90px; aspect-ratio:auto; flex:none; border-radius:var(--r-sm);}
   .photo-tile.small .lbl-tag{font-size:10px; padding:1px 6px;}
+  /* En dessous de ~390px, 90px fixes ne laissent plus tenir que 2 vignettes
+     par ligne (la 3e passe à la ligne). Largeur relative au conteneur à la
+     place, toujours calée sur 3 par ligne quelle que soit la largeur mobile. */
+  @media(max-width:600px){
+    .photo-tile.small{width:calc((100% - 20px) / 3); box-sizing:border-box;}
+  }
 
   /* ---------- Lightbox ---------- */
   /* z-index 400 (au-dessus de .modal-overlay=300) : le lightbox peut
@@ -5117,17 +5132,50 @@ async function deleteWishRow(id){
   await sb.from('wishlist').delete().eq('id', id);
 }
 
+// Copie les photos d'un souhait vers l'objet qui vient d'être créé lors du
+// passage "Trouvé" : chaque fichier Scaleway du souhait (wishlist/<id>/...)
+// est retéléchargé depuis son URL publique puis ré-envoyé sous la
+// convention utilisée par les objets (<uid>/label-timestamp.ext), avec une
+// nouvelle ligne "photos" (label et n° d'ordre — pour "Autre" — conservés).
+// Les anciennes photos (table wishlist_photos + fichiers Scaleway) sont
+// supprimées juste après par deleteWishRow(), une fois la copie faite.
+// Best-effort : une photo qui échoue à se copier ne bloque pas la
+// conversion (l'objet est déjà créé) — un avertissement est juste affiché,
+// et cette photo précise reste perdue.
+async function transferWishPhotosToObjet(wishId, uid){
+  const shots = (WISHLIST_PHOTOS_BY_ID[wishId] || []).slice();
+  if(!shots.length) return;
+  let autreCount = 0;
+  for(const p of shots){
+    try{
+      const res = await fetch(scalewayPublicUrl(p.storage_path));
+      if(!res.ok) throw new Error('HTTP ' + res.status);
+      const blob = await res.blob();
+      const ext = (p.storage_path.split('.').pop() || 'webp').toLowerCase();
+      const label = p.label || 'Autre';
+      const path = `${uid}/${label.toLowerCase()}-${Date.now()}-${Math.random().toString(36).slice(2,7)}.${ext}`;
+      await uploadToScaleway(path, blob, blob.type || 'image/webp');
+      const position = label === 'Autre' ? ++autreCount : null;
+      const { error: insErr } = await sb.from('photos').insert({ objet_uid: uid, storage_path: path, label, position });
+      if(insErr) throw insErr;
+    }catch(err){
+      if(typeof showToast === 'function') showToast("Une photo du souhait n'a pas pu être transférée : " + (err.detail || err.message || err), 'error');
+    }
+  }
+  await refreshPhotosCache();
+}
+
 // Crée directement l'objet correspondant dans le catalogue en reprenant tel
 // quel tout ce que le souhait a déjà renseigné (mêmes champs, voir
 // WISH_OBJET_SHARED_COLS — le formulaire souhait est désormais identique à
 // celui d'un objet), et ajoute la date d'acquisition = aujourd'hui (pour que
 // les stats du tableau de bord — "Derniers ajoutés", "Acquisitions cette
 // année/ce mois" — le comptent dès maintenant, un champ "possession" que le
-// souhait n'a justement pas). Retire ensuite le souhait de la liste (plus
-// d'état "Trouvé" à conserver puisqu'il devient un objet à part entière),
-// puis ouvre sa fiche pour compléter le reste (provenance, prix, photos…).
-// Les photos du souhait ne sont PAS reprises automatiquement (pas de lien
-// entre les deux tables de stockage) — l'utilisateur les réenverra sur la fiche.
+// souhait n'a justement pas). Les photos du souhait sont reprises dans le
+// catalogue (voir transferWishPhotosToObjet()) avant que le souhait ne soit
+// retiré de la liste (plus d'état "Trouvé" à conserver puisqu'il devient un
+// objet à part entière), puis sa fiche s'ouvre pour compléter le reste
+// (provenance, prix…).
 async function markWishFoundAndCreate(w){
   const today = new Date().toISOString().slice(0,10);
   const payload = { date_acquisition: today };
@@ -5137,6 +5185,7 @@ async function markWishFoundAndCreate(w){
     if(typeof showToast === 'function') showToast("Erreur lors de la création de l'objet : " + error.message, 'error');
     return;
   }
+  await transferWishPhotosToObjet(w.id, data.uid);
   await deleteWishRow(w.id);
   await loadWishlist();
   await loadAll();
@@ -5550,12 +5599,18 @@ async function saveWish(){
     return;
   }
   const saveBtn = document.getElementById('wishSaveBtn');
+  // Le texte de chargement remplace celui du bouton (plutôt qu'un message à
+  // côté, qui débordait du cadre en mobile faute de place) — restauré si
+  // erreur ; en cas de succès inutile, la page change (openWishFiche()).
+  const saveBtnOriginalText = saveBtn.textContent;
   saveBtn.disabled = true;
+  saveBtn.textContent = 'Enregistrement…';
   let resultId;
   if(WISH_EDIT_ID){
     const { error } = await sb.from('wishlist').update(payload).eq('id', WISH_EDIT_ID);
     if(error){
       saveBtn.disabled = false;
+      saveBtn.textContent = saveBtnOriginalText;
       const msg = document.getElementById('wishFormMsg');
       msg.textContent = 'Erreur : ' + error.message;
       msg.classList.add('error');
@@ -5566,6 +5621,7 @@ async function saveWish(){
     const { data, error } = await sb.from('wishlist').insert(payload).select().single();
     if(error){
       saveBtn.disabled = false;
+      saveBtn.textContent = saveBtnOriginalText;
       const msg = document.getElementById('wishFormMsg');
       msg.textContent = 'Erreur : ' + error.message;
       msg.classList.add('error');
