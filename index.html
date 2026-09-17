@@ -496,13 +496,8 @@
   .clickable-stat{cursor:pointer; transition:background .15s ease, transform .15s ease;}
   .clickable-stat:hover{background:var(--surface-hover); transform:translateX(2px);}
 
-  /* margin:0 -4px commun aux lignes cliquables ET non-cliquables (ex: la ligne
-     "Autres" en bas de Provenance/État/Authenticité, jamais filtrable donc
-     sans .clickable-stat) : sinon cette dernière ligne — dépourvue de la
-     marge négative qui compense le padding pour les lignes cliquables —
-     se retrouvait décalée de 4px vers la droite par rapport aux lignes
-     du dessus. */
-  .prov-row{display:flex; align-items:center; gap:10px; margin:0 -4px 10px; font-size:12px; min-width:0; border-radius:var(--r-sm); padding:2px 4px;}
+  .prov-row{display:flex; align-items:center; gap:10px; margin-bottom:10px; font-size:12px; min-width:0; border-radius:var(--r-sm); padding:2px 4px;}
+  .prov-row.clickable-stat{margin:0 -4px 10px; padding:2px 4px;}
   .prov-row .pl{width:110px; flex:none; color:var(--ink-soft); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
   .prov-track{flex:1; min-width:0; background:var(--surface-2); height:8px; border-radius:5px; overflow:hidden;}
   .prov-fill{height:100%; background:linear-gradient(90deg, color-mix(in srgb, var(--accent) 60%, transparent), var(--accent)); border-radius:5px;}
@@ -639,12 +634,6 @@
   .state-msg{text-align:center; padding:60px 20px; color:var(--ink-faint); font-size:13.5px;}
   .foot-note{text-align:center; font-size:11px; color:var(--ink-faint); margin-top:34px; font-family:'IBM Plex Mono',monospace;}
   .foot-note + .foot-note{margin-top:12px;}
-  /* Les 2 lignes du pied de page (copyright + statut de connexion) sur un
-     seul niveau : copyright à gauche, statut (avec sa pastille verte, comme
-     celle du compte admin dans la sidebar) à droite. */
-  .foot-note-row{display:flex; align-items:center; justify-content:center; gap:18px; flex-wrap:wrap;}
-  .foot-note-row .foot-status{display:inline-flex; align-items:center; gap:6px;}
-  @media(max-width:600px){.foot-note-row{flex-direction:column; gap:8px;}}
 
   /* ---------- Galerie (grille façon Instagram) ----------
      Contenu généré par le script additif en bas de page. Grille CSS simple,
@@ -845,15 +834,6 @@
     .card-top .header-actions{width:100%; flex-wrap:nowrap; gap:6px; justify-content:flex-end;}
     .card-top .rarity-pill{padding:0 12px; height:36px; gap:6px;}
     .card-top .header-actions .btn{padding:0 12px; font-size:12.5px; flex:0 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis;}
-    /* Fiche de souhait : 4 éléments dans .header-actions (indice de rareté +
-       3 CTA Trouvé/Supprimer/Modifier) au lieu de 3 pour un objet (indice +
-       Modifier + Supprimer injecté) — trop pour tenir sur une seule ligne
-       sans être écrasés. L'indice de rareté passe seul sur sa ligne, les 3
-       CTA se partagent la ligne suivante à parts égales. Ciblé sur
-       #view-wish-fiche uniquement pour ne rien changer à la fiche objet. */
-    #view-wish-fiche .card-top .header-actions{flex-wrap:wrap;}
-    #view-wish-fiche .card-top .rarity-pill{flex:1 1 100%; justify-content:center;}
-    #view-wish-fiche .card-top .header-actions .btn{flex:1 1 0; overflow:visible; text-overflow:clip;}
   }
 
   .card-fields{padding:22px 26px;}
@@ -894,12 +874,6 @@
   .extra-photos-row{display:flex; flex-wrap:wrap; gap:10px; margin-bottom:14px;}
   .photo-tile.small{width:90px; height:90px; aspect-ratio:auto; flex:none; border-radius:var(--r-sm);}
   .photo-tile.small .lbl-tag{font-size:10px; padding:1px 6px;}
-  /* En dessous de ~390px, 90px fixes ne laissent plus tenir que 2 vignettes
-     par ligne (la 3e passe à la ligne). Largeur relative au conteneur à la
-     place, toujours calée sur 3 par ligne quelle que soit la largeur mobile. */
-  @media(max-width:600px){
-    .photo-tile.small{width:calc((100% - 20px) / 3); box-sizing:border-box;}
-  }
 
   /* ---------- Lightbox ---------- */
   /* z-index 400 (au-dessus de .modal-overlay=300) : le lightbox peut
@@ -1546,10 +1520,8 @@ try{
         <div id="formContent"></div>
       </section>
 
-      <div class="foot-note foot-note-row">
-        <span>© <span id="footYear"></span> Mémoire de l'Ombre</span>
-        <span class="foot-status"><span class="status-dot online"></span>Connecté à votre base Supabase</span>
-      </div>
+      <div class="foot-note">Connecté à votre base Supabase</div>
+      <div class="foot-note">© <span id="footYear"></span> Mémoire de l'Ombre</div>
     </div>
   </div>
 </div>
@@ -3115,11 +3087,6 @@ const ETAT_OPTIONS = ['Neuf','Très bon état','Bon état','Usure légère','Ab�
 const AUTHENTICITE_OPTIONS = ['Authentique','Copie / Reproduction','Refrappe','Faux / Contrefaçon','À vérifier'];
 const TYPE_OBJET_OPTIONS = ['Insigne','Brassard','Médaille','Médaille de table','Livre','Document','Porte-clés','Breloque','À classer','Divers'];
 const TYPE_TIRAGE_OPTIONS = ['','TE','TC','Mixte','Inconnu'];
-// Valeurs de "Région" toujours proposées dans le select, même si aucun objet/
-// souhait ne les utilise encore (contrairement au reste de la liste,
-// construite dynamiquement à partir de ALL_OBJETS) — utilisée par openForm()
-// ET openWishForm() pour rester cohérente entre objet et souhait.
-const REGION_BASE_VALUES = ['A1','A2','A3','A3 / A4','A4','A5'];
 
 // Construit le texte de "Détail tirage" à partir du type et de la quantité,
 // pour alimenter automatiquement ce champ dans le formulaire.
@@ -3194,12 +3161,7 @@ function openForm(mode, objet){
   FORM_MODE = mode;
   FORM_UID = objet ? objet.uid : null;
   const o = objet || {};
-  // Option vide en tête ('' -> affichée "—" par fieldHtml), comme pour le
-  // formulaire de souhait : sans elle, le select forçait toujours la
-  // première région de la liste par défaut, impossible à laisser vide.
-  // REGION_BASE_VALUES (A1/A2/A3/A4/A5) toujours incluses, même si aucun objet
-  // existant ne les utilise encore.
-  const REGION_VALUES = ['', ...[...new Set(REGION_BASE_VALUES.concat((typeof ALL_OBJETS !== 'undefined' ? ALL_OBJETS : []).map(x=>x.region)).filter(Boolean).concat(o.region ? [o.region] : []))].sort((a,b)=>a.localeCompare(b,'fr'))];
+  const REGION_VALUES = [...new Set((typeof ALL_OBJETS !== 'undefined' ? ALL_OBJETS : []).map(x=>x.region).filter(Boolean).concat(o.region ? [o.region] : []))].sort((a,b)=>a.localeCompare(b,'fr'));
   const MOUVEMENT_VALUES = [...new Set((typeof ALL_OBJETS !== 'undefined' ? ALL_OBJETS : []).map(x=>x.mouvement).filter(Boolean).concat(o.mouvement ? [o.mouvement] : []))].sort((a,b)=>a.localeCompare(b,'fr'));
   document.getElementById('formContent').innerHTML = `
     <div class="form-card">
@@ -3306,23 +3268,18 @@ async function saveObjet(){
   }
 
   const btn = document.getElementById('saveObjetBtn');
-  // Le texte de chargement remplace celui du bouton (plutôt qu'un message à
-  // côté, qui débordait du cadre en mobile faute de place) — même correctif
-  // que saveWish() ; restauré si erreur, sinon inutile, la page change.
-  const btnOriginalText = btn.textContent;
   btn.disabled = true;
-  btn.textContent = 'Enregistrement…';
-  document.getElementById('formMsg').textContent = '';
+  document.getElementById('formMsg').textContent = 'Enregistrement…';
   document.getElementById('formMsg').classList.remove('error');
 
   let resultUid;
   if(FORM_MODE==='edit'){
     const { error } = await sb.from('objets').update(payload).eq('uid', FORM_UID);
-    if(error){ document.getElementById('formMsg').textContent = 'Erreur : '+error.message; document.getElementById('formMsg').classList.add('error'); btn.disabled=false; btn.textContent=btnOriginalText; return; }
+    if(error){ document.getElementById('formMsg').textContent = 'Erreur : '+error.message; document.getElementById('formMsg').classList.add('error'); btn.disabled=false; return; }
     resultUid = FORM_UID;
   } else {
     const { data, error } = await sb.from('objets').insert(payload).select().single();
-    if(error){ document.getElementById('formMsg').textContent = 'Erreur : '+error.message; document.getElementById('formMsg').classList.add('error'); btn.disabled=false; btn.textContent=btnOriginalText; return; }
+    if(error){ document.getElementById('formMsg').textContent = 'Erreur : '+error.message; document.getElementById('formMsg').classList.add('error'); btn.disabled=false; return; }
     resultUid = data.uid;
   }
 
@@ -3508,18 +3465,7 @@ document.getElementById('advSearchReset').addEventListener('click', ()=>{
   renderGrid(active, document.getElementById('searchInput').value);
 });
 try{
-  // Etat initial de l'historique, SANS toucher à l'URL affichée : les
-  // cartes/lignes du catalogue sont déjà de vrais liens <a href="?obj=uid">
-  // (voir cardHtml()/listRowHtml()), donc un clic droit "Ouvrir le lien dans
-  // un nouvel onglet" (ou Ctrl/Cmd/clic milieu, laissés volontairement au
-  // navigateur par wireGridItem()) ouvre cette URL telle quelle. Si on la
-  // réécrivait ici en juste window.location.pathname (comme avant), le
-  // paramètre ?obj= serait effacé avant même que loadAll() plus bas n'ait pu
-  // le lire pour ouvrir la fiche correspondante — ce nouvel onglet retombait
-  // alors sur le tableau de bord au lieu de la fiche visée.
-  const initParams = new URLSearchParams(window.location.search);
-  const initObj = initParams.get('obj');
-  history.replaceState({view: initObj ? 'fiche' : 'dashboard', uid: initObj || null}, '', window.location.href);
+  history.replaceState({view:'dashboard', uid:null}, '', window.location.pathname);
 }catch(err){
   // Contexte restreint (ex: aperçu en iframe) — sans impact sur le reste de l'appli.
 }
@@ -5161,50 +5107,17 @@ async function deleteWishRow(id){
   await sb.from('wishlist').delete().eq('id', id);
 }
 
-// Copie les photos d'un souhait vers l'objet qui vient d'être créé lors du
-// passage "Trouvé" : chaque fichier Scaleway du souhait (wishlist/<id>/...)
-// est retéléchargé depuis son URL publique puis ré-envoyé sous la
-// convention utilisée par les objets (<uid>/label-timestamp.ext), avec une
-// nouvelle ligne "photos" (label et n° d'ordre — pour "Autre" — conservés).
-// Les anciennes photos (table wishlist_photos + fichiers Scaleway) sont
-// supprimées juste après par deleteWishRow(), une fois la copie faite.
-// Best-effort : une photo qui échoue à se copier ne bloque pas la
-// conversion (l'objet est déjà créé) — un avertissement est juste affiché,
-// et cette photo précise reste perdue.
-async function transferWishPhotosToObjet(wishId, uid){
-  const shots = (WISHLIST_PHOTOS_BY_ID[wishId] || []).slice();
-  if(!shots.length) return;
-  let autreCount = 0;
-  for(const p of shots){
-    try{
-      const res = await fetch(scalewayPublicUrl(p.storage_path));
-      if(!res.ok) throw new Error('HTTP ' + res.status);
-      const blob = await res.blob();
-      const ext = (p.storage_path.split('.').pop() || 'webp').toLowerCase();
-      const label = p.label || 'Autre';
-      const path = `${uid}/${label.toLowerCase()}-${Date.now()}-${Math.random().toString(36).slice(2,7)}.${ext}`;
-      await uploadToScaleway(path, blob, blob.type || 'image/webp');
-      const position = label === 'Autre' ? ++autreCount : null;
-      const { error: insErr } = await sb.from('photos').insert({ objet_uid: uid, storage_path: path, label, position });
-      if(insErr) throw insErr;
-    }catch(err){
-      if(typeof showToast === 'function') showToast("Une photo du souhait n'a pas pu être transférée : " + (err.detail || err.message || err), 'error');
-    }
-  }
-  await refreshPhotosCache();
-}
-
 // Crée directement l'objet correspondant dans le catalogue en reprenant tel
 // quel tout ce que le souhait a déjà renseigné (mêmes champs, voir
 // WISH_OBJET_SHARED_COLS — le formulaire souhait est désormais identique à
 // celui d'un objet), et ajoute la date d'acquisition = aujourd'hui (pour que
 // les stats du tableau de bord — "Derniers ajoutés", "Acquisitions cette
 // année/ce mois" — le comptent dès maintenant, un champ "possession" que le
-// souhait n'a justement pas). Les photos du souhait sont reprises dans le
-// catalogue (voir transferWishPhotosToObjet()) avant que le souhait ne soit
-// retiré de la liste (plus d'état "Trouvé" à conserver puisqu'il devient un
-// objet à part entière), puis sa fiche s'ouvre pour compléter le reste
-// (provenance, prix…).
+// souhait n'a justement pas). Retire ensuite le souhait de la liste (plus
+// d'état "Trouvé" à conserver puisqu'il devient un objet à part entière),
+// puis ouvre sa fiche pour compléter le reste (provenance, prix, photos…).
+// Les photos du souhait ne sont PAS reprises automatiquement (pas de lien
+// entre les deux tables de stockage) — l'utilisateur les réenverra sur la fiche.
 async function markWishFoundAndCreate(w){
   const today = new Date().toISOString().slice(0,10);
   const payload = { date_acquisition: today };
@@ -5214,7 +5127,6 @@ async function markWishFoundAndCreate(w){
     if(typeof showToast === 'function') showToast("Erreur lors de la création de l'objet : " + error.message, 'error');
     return;
   }
-  await transferWishPhotosToObjet(w.id, data.uid);
   await deleteWishRow(w.id);
   await loadWishlist();
   await loadAll();
@@ -5268,8 +5180,8 @@ function showWishFiche(w){
         <div class="header-actions">
           <div class="rarity-pill"><span class="dots dots-lg">${dotsHtml(raretePos(w.indice_rarete))}</span></div>
           <button class="btn btn-primary" id="wishFicheFoundBtn" type="button" title="Créer l'objet dans le catalogue">${CHECK_ICON} Trouvé</button>
-          <button class="btn btn-danger" id="wishFicheDeleteBtn" type="button">Supprimer</button>
           <button class="btn btn-secondary" id="wishFicheEditBtn" type="button">Modifier</button>
+          <button class="btn btn-danger" id="wishFicheDeleteBtn" type="button">Supprimer</button>
         </div>
       </div>
       <div id="wishFicheGalleryWrap" style="margin:20px 26px 0;"></div>
@@ -5280,7 +5192,6 @@ function showWishFiche(w){
           <div class="field-row"><div class="k">Région</div><div class="v">${esc(w.region) || '—'}</div></div>
           <div class="field-row"><div class="k">Département</div><div class="v">${esc(w.departement) || '—'}</div></div>
           <div class="field-row"><div class="k">Mouvement</div><div class="v">${esc(w.mouvement) || '—'}</div></div>
-          <div class="field-row"><div class="k">Détails</div><div class="v">${esc(w.details) || '—'}</div></div>
           <div class="field-row"><div class="k">Taille</div><div class="v mono">${esc(w.taille) || '—'}</div></div>
           <div class="field-row"><div class="k">Fabricant</div><div class="v">${esc(w.fabricant) || '—'}</div></div>
           <div class="field-row"><div class="k">Détail tirage</div><div class="v">${esc(w.detail_tirage) || '—'}</div></div>
@@ -5288,8 +5199,9 @@ function showWishFiche(w){
           <div class="field-row"><div class="k">Type de variante</div><div class="v">${esc(w.type_variante) || '—'}</div></div>
           <div class="field-row"><div class="k">Authenticité</div><div class="v">${esc(w.authenticite) || '—'}</div></div>
           <div class="field-row"><div class="k">État de conservation</div><div class="v">${esc(w.etat_conservation) || '—'}</div></div>
-          <div class="field-row full"><div class="k">Infos / historique</div><div class="v rich-text">${formatRichText(w.infos)}</div></div>
           <div class="field-row full"><div class="k">Notes</div><div class="v rich-text">${formatRichText(w.notes)}</div></div>
+          <div class="field-row full"><div class="k">Infos / historique</div><div class="v rich-text">${formatRichText(w.infos)}</div></div>
+          <div class="field-row full"><div class="k">Détails</div><div class="v rich-text">${formatRichText(w.details)}</div></div>
         </div>
       </div>
       <div id="wishFicheMiniMap" class="obj-mini-map"></div>
@@ -5354,14 +5266,7 @@ async function renderWishFicheMiniMap(wishId, depString){
 function openWishForm(w){
   WISH_EDIT_ID = w ? w.id : null;
   const o = w || {};
-  // Option vide en tête ('' -> affichée "—" par fieldHtml) : contrairement à
-  // un objet déjà possédé, un souhait peut très bien ne pas encore avoir de
-  // région connue — sans cette option, le select forçait toujours la
-  // première région de la liste par défaut, impossible à laisser vide.
-  // REGION_BASE_VALUES (A1/A2/A3/A4/A5) toujours incluses, même si aucun objet
-  // existant ne les utilise encore (même liste que openForm(), pour rester
-  // cohérente entre objet et souhait).
-  const REGION_VALUES = ['', ...[...new Set(REGION_BASE_VALUES.concat((typeof ALL_OBJETS !== 'undefined' ? ALL_OBJETS : []).map(x=>x.region)).filter(Boolean).concat(o.region ? [o.region] : []))].sort((a,b)=>a.localeCompare(b,'fr'))];
+  const REGION_VALUES = [...new Set((typeof ALL_OBJETS !== 'undefined' ? ALL_OBJETS : []).map(x=>x.region).filter(Boolean).concat(o.region ? [o.region] : []))].sort((a,b)=>a.localeCompare(b,'fr'));
   const MOUVEMENT_VALUES = [...new Set((typeof ALL_OBJETS !== 'undefined' ? ALL_OBJETS : []).map(x=>x.mouvement).filter(Boolean).concat(o.mouvement ? [o.mouvement] : []))].sort((a,b)=>a.localeCompare(b,'fr'));
   document.getElementById('wishFormContent').innerHTML = `
     <div class="form-card">
@@ -5628,18 +5533,12 @@ async function saveWish(){
     return;
   }
   const saveBtn = document.getElementById('wishSaveBtn');
-  // Le texte de chargement remplace celui du bouton (plutôt qu'un message à
-  // côté, qui débordait du cadre en mobile faute de place) — restauré si
-  // erreur ; en cas de succès inutile, la page change (openWishFiche()).
-  const saveBtnOriginalText = saveBtn.textContent;
   saveBtn.disabled = true;
-  saveBtn.textContent = 'Enregistrement…';
   let resultId;
   if(WISH_EDIT_ID){
     const { error } = await sb.from('wishlist').update(payload).eq('id', WISH_EDIT_ID);
     if(error){
       saveBtn.disabled = false;
-      saveBtn.textContent = saveBtnOriginalText;
       const msg = document.getElementById('wishFormMsg');
       msg.textContent = 'Erreur : ' + error.message;
       msg.classList.add('error');
@@ -5650,7 +5549,6 @@ async function saveWish(){
     const { data, error } = await sb.from('wishlist').insert(payload).select().single();
     if(error){
       saveBtn.disabled = false;
-      saveBtn.textContent = saveBtnOriginalText;
       const msg = document.getElementById('wishFormMsg');
       msg.textContent = 'Erreur : ' + error.message;
       msg.classList.add('error');
