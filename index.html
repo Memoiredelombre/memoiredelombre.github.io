@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="fr" class="dark">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -40,8 +40,14 @@
     --r-lg:24px; --r-md:16px; --r-sm:12px; --r-xs:9px;
     --glow: 0 0 0 rgba(0,0,0,0);
   }
-  /* ---------- Thème sombre : "voûte" — verre + lueur ambre sur fond nuit ---------- */
-  body.dark{
+  /* ---------- Thème sombre : "voûte" — verre + lueur ambre sur fond nuit ----------
+     Sélecteur sur html.dark ET body.dark (la classe 'dark' est posée sur les
+     deux, voir le script de thème en bas de <head> et le bouton bascule) :
+     chaque élément porte alors sa propre copie de ces variables, ce qui
+     permet à html{background:var(--bg)} ci-dessous de résoudre la bonne
+     couleur — une variable posée seulement sur body.dark ne "remonterait"
+     pas jusqu'à son parent html. */
+  html.dark, body.dark{
     --bg:#080a10; --surface:#12141d; --surface-2:#191c28; --surface-hover:#232739;
     --border:#262a3c;
     --ink:#f4f0e6; --ink-soft:#9b9db1; --ink-faint:#585c72;
@@ -55,7 +61,12 @@
 
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;}
-  html{scrollbar-gutter:stable; overflow-y:scroll;}
+  /* background ici (pas seulement sur body) : sur mobile (iOS surtout), le
+     rebond élastique du scroll dépasse brièvement les bords de body et
+     révèle le fond de html — sans cette règle, un bandeau blanc (fond par
+     défaut du navigateur) apparaissait un instant sous le dock de
+     navigation avant de disparaître au repositionnement du scroll. */
+  html{scrollbar-gutter:stable; overflow-y:scroll; background:var(--bg); transition:background .25s ease;}
   body{background:var(--bg); color:var(--ink); font-family:'Space Grotesk','Plus Jakarta Sans',sans-serif; min-height:100vh; -webkit-font-smoothing:antialiased; transition:background .25s ease, color .25s ease; position:relative;}
   .mono{font-family:'IBM Plex Mono',monospace;}
   a{color:inherit;}
@@ -965,8 +976,12 @@
 // gérés par le script principal, inchangé).
 try{
   var mdoSavedTheme = localStorage.getItem('mdo-theme');
-  if(mdoSavedTheme === 'light') document.body.classList.remove('dark');
-  else if(mdoSavedTheme === 'dark') document.body.classList.add('dark');
+  // La classe 'dark' est aussi posée sur <html> (en plus de <body>, inchangé) :
+  // sert uniquement de fond à html{background:var(--bg)} pour éviter une
+  // barre blanche lors du rebond élastique du scroll sur mobile (iOS), qui
+  // révèle brièvement le fond de <html> sous le dock de navigation.
+  if(mdoSavedTheme === 'light'){ document.body.classList.remove('dark'); document.documentElement.classList.remove('dark'); }
+  else if(mdoSavedTheme === 'dark'){ document.body.classList.add('dark'); document.documentElement.classList.add('dark'); }
 }catch(e){ /* localStorage indisponible (navigation privée stricte, etc.) : thème par défaut conservé */ }
 </script>
 
@@ -3393,6 +3408,7 @@ document.getElementById('backBtn').addEventListener('click', ()=>{
 document.getElementById('newObjetBtn').addEventListener('click', ()=> openForm('create', null));
 document.getElementById('darkModeBtn').addEventListener('click', ()=>{
   const isDark = document.body.classList.toggle('dark');
+  document.documentElement.classList.toggle('dark', isDark); // garde <html> synchro avec <body>, voir html{background:var(--bg)}
   document.getElementById('darkModeBtn').textContent = isDark ? '☀️' : '🌙';
   if(franceTileLayer) franceTileLayer.setUrl(tileUrlFor(isDark));
   if(franceMap) setTimeout(()=> franceMap.invalidateSize(), 50);
