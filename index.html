@@ -159,6 +159,12 @@
       backdrop-filter:blur(22px) saturate(170%); -webkit-backdrop-filter:blur(22px) saturate(170%);
     }
     .sidebar .brand-block, .sidebar .sidebar-spacer{display:none;}
+    /* Seul enfant visible du dock une fois brand-block/spacer/footer masqués :
+       sans ça il ne prenait que la largeur de son contenu (rétréci par le
+       justify-content:center du .sidebar ci-dessus), et nav.tabs — bien
+       qu'en width:100% — héritait de cette largeur déjà trop étroite au lieu
+       de vraiment occuper tout le dock. */
+    .sidebar .nav-wrap{width:100%;}
     .sidebar-backdrop{display:none !important;}
     #sidebarToggleBtn{display:none;}
     .main{gap:0;}
@@ -216,19 +222,22 @@
 
   /* Dock mobile : icône au-dessus, libellé court en dessous, pastille active dégradée */
   @media(max-width:900px){
-    nav.tabs{flex-direction:row; width:100%; gap:2px;}
-    /* flex-basis:0 (au lieu de flex:1 seul, qui part du contenu) : les 2 ou 3
-       CTA du dock se répartissent alors à largeur RIGOUREUSEMENT égale sur
-       toute la largeur du dock, y compris quand "Fiche" apparaît/disparaît
-       dynamiquement (libellé plus long que "Catalogue") — jamais un onglet
-       plus large qu'un autre. min-width:0 laisse le libellé tronquer plutôt
-       que forcer le bouton à s'élargir. */
-    nav.tabs button.nav-item{flex:1 1 0; min-width:0; flex-direction:column; justify-content:center; align-items:center; gap:3px; padding:8px 4px 7px; font-size:10px; font-weight:600; border-radius:14px; text-align:center;}
+    /* Largeur égale (flex:1 1 0) tronquait le libellé le plus long
+       ("Catalogue"/"Dashboard") dès que 3-4 onglets se partageaient l'écran :
+       chaque bouton ne prend maintenant que la largeur de son contenu
+       (flex:0 1 auto), et space-evenly répartit l'espace libre entre eux —
+       le libellé reste toujours entier, quel que soit le nombre d'onglets
+       affichés (2 pour l'invité en galerie... jusqu'à 4 pour l'admin). */
+    nav.tabs{flex-direction:row; width:100%; gap:2px; justify-content:space-evenly;}
+    nav.tabs button.nav-item{flex:0 1 auto; min-width:0; flex-direction:column; justify-content:center; align-items:center; gap:3px; padding:8px 10px 7px; font-size:10px; font-weight:600; border-radius:14px; text-align:center;}
     nav.tabs button.nav-item .ico{width:20px; height:20px; margin-bottom:1px;}
-    nav.tabs button.nav-item .label-text{max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+    nav.tabs button.nav-item .label-text{white-space:nowrap;}
     nav.tabs button.nav-item::before{display:none;}
     nav.tabs button.nav-item.active{background:linear-gradient(155deg, var(--accent), color-mix(in srgb, var(--accent) 70%, black)); color:var(--accent-ink); border-color:transparent; box-shadow:var(--glow);}
     nav.tabs button.nav-item.active .ico{opacity:1;}
+  }
+  @media(max-width:360px){
+    nav.tabs button.nav-item{padding:8px 6px 7px; font-size:9.5px;}
   }
 
   .sidebar-spacer{flex:1;}
@@ -977,7 +986,7 @@ try{
       </div>
     </div>
 
-    <div>
+    <div class="nav-wrap">
       <nav class="tabs" id="tabs">
         <button class="nav-item active" data-view="dashboard"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg></span><span class="label-text">Dashboard</span></button>
         <button class="nav-item" data-view="catalogue"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="5" rx="1.5"/><path d="M5 9v9a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V9"/><path d="M10 13h4"/></svg></span><span class="label-text">Catalogue</span></button>
