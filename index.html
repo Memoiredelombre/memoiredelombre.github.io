@@ -734,7 +734,11 @@
      cohérentes avec le thème sombre/ambre). Voir showToast() dans le script
      additif en bas de page et #toastContainer dans le HTML. */
   .toast-container{position:fixed; right:18px; bottom:18px; z-index:1200; display:flex; flex-direction:column; gap:10px; max-width:min(360px, calc(100vw - 36px)); pointer-events:none;}
-  .toast{pointer-events:auto; display:flex; align-items:flex-start; gap:10px; padding:12px 14px; border-radius:var(--r-sm); background:var(--surface-1); border:1px solid var(--border); box-shadow:var(--shadow-md); color:var(--ink); animation:toast-in .22s ease-out;}
+  /* var(--surface-1) était une coquille : cette variable n'a jamais existé
+     (le vrai nom est --surface), donc le fond retombait sur transparent —
+     invisible partout, mais surtout illisible en mobile où le toast
+     s'affiche juste au-dessus du dock de navigation, sur du contenu. */
+  .toast{pointer-events:auto; display:flex; align-items:flex-start; gap:10px; padding:12px 14px; border-radius:var(--r-sm); background:var(--surface); border:1px solid var(--border); box-shadow:var(--shadow-md); color:var(--ink); animation:toast-in .22s ease-out;}
   .toast.error{border-color:color-mix(in srgb, var(--danger) 40%, var(--border)); box-shadow:var(--shadow-md), 0 0 0 1px color-mix(in srgb, var(--danger) 12%, transparent);}
   .toast.leaving{animation:toast-out .2s ease-in forwards;}
   .toast-icon{flex:none; width:18px; height:18px; margin-top:1px; color:var(--accent);}
