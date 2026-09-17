@@ -2,7 +2,15 @@
 <html lang="fr" class="dark">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<!-- Colore la barre d'outils NATIVE du navigateur mobile (Samsung Internet,
+     Chrome Android...) pour qu'elle suive le thème de l'appli au lieu de
+     rester blanche par défaut : sans ça, cette barre blanche redevenait
+     visible pendant l'animation d'affichage/masquage au scroll (comportement
+     du navigateur, hors de portée du CSS de la page) — resynchronisée sur le
+     thème courant par le script de thème ci-dessous et le bouton bascule. -->
+<meta name="theme-color" content="#080a10" id="themeColorMeta">
+<meta name="color-scheme" content="dark light">
 <title>Mémoire de l'Ombre</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -980,8 +988,14 @@ try{
   // sert uniquement de fond à html{background:var(--bg)} pour éviter une
   // barre blanche lors du rebond élastique du scroll sur mobile (iOS), qui
   // révèle brièvement le fond de <html> sous le dock de navigation.
-  if(mdoSavedTheme === 'light'){ document.body.classList.remove('dark'); document.documentElement.classList.remove('dark'); }
-  else if(mdoSavedTheme === 'dark'){ document.body.classList.add('dark'); document.documentElement.classList.add('dark'); }
+  var themeColorMeta = document.getElementById('themeColorMeta');
+  if(mdoSavedTheme === 'light'){
+    document.body.classList.remove('dark'); document.documentElement.classList.remove('dark');
+    if(themeColorMeta) themeColorMeta.setAttribute('content', '#f6f2e8');
+  } else if(mdoSavedTheme === 'dark'){
+    document.body.classList.add('dark'); document.documentElement.classList.add('dark');
+    if(themeColorMeta) themeColorMeta.setAttribute('content', '#080a10');
+  }
 }catch(e){ /* localStorage indisponible (navigation privée stricte, etc.) : thème par défaut conservé */ }
 </script>
 
@@ -3409,6 +3423,8 @@ document.getElementById('newObjetBtn').addEventListener('click', ()=> openForm('
 document.getElementById('darkModeBtn').addEventListener('click', ()=>{
   const isDark = document.body.classList.toggle('dark');
   document.documentElement.classList.toggle('dark', isDark); // garde <html> synchro avec <body>, voir html{background:var(--bg)}
+  const themeColorMeta = document.getElementById('themeColorMeta');
+  if(themeColorMeta) themeColorMeta.setAttribute('content', isDark ? '#080a10' : '#f6f2e8'); // barre d'outils native du navigateur mobile (voir <meta name="theme-color"> dans <head>)
   document.getElementById('darkModeBtn').textContent = isDark ? '☀️' : '🌙';
   if(franceTileLayer) franceTileLayer.setUrl(tileUrlFor(isDark));
   if(franceMap) setTimeout(()=> franceMap.invalidateSize(), 50);
