@@ -241,16 +241,15 @@
 
   /* Dock mobile : icône au-dessus, libellé court en dessous, pastille active dégradée */
   @media(max-width:900px){
-    /* Largeur égale (flex:1 1 0) tronquait le libellé le plus long
-       ("Catalogue"/"Dashboard") dès que 3-4 onglets se partageaient l'écran :
-       chaque bouton ne prend maintenant que la largeur de son contenu
-       (flex:0 1 auto), et space-evenly répartit l'espace libre entre eux —
-       le libellé reste toujours entier, quel que soit le nombre d'onglets
-       affichés (2 pour l'invité en galerie... jusqu'à 4 pour l'admin). */
-    nav.tabs{flex-direction:row; width:100%; gap:2px; justify-content:space-evenly;}
-    nav.tabs button.nav-item{flex:0 1 auto; min-width:0; flex-direction:column; justify-content:center; align-items:center; gap:3px; padding:8px 10px 7px; font-size:10px; font-weight:600; border-radius:14px; text-align:center;}
+    /* Largeur égale (flex:1 1 0) entre tous les onglets — nécessite que
+       nav.tabs (et son wrapper .nav-wrap juste au-dessus) occupent vraiment
+       toute la largeur du dock, sinon le libellé le plus long tronque (c'est
+       ce wrapper qui posait problème avant, pas la répartition égale en
+       elle-même — voir .sidebar .nav-wrap ci-dessus, corrigé séparément). */
+    nav.tabs{flex-direction:row; width:100%; gap:2px;}
+    nav.tabs button.nav-item{flex:1 1 0; min-width:0; flex-direction:column; justify-content:center; align-items:center; gap:3px; padding:8px 4px 7px; font-size:10px; font-weight:600; border-radius:14px; text-align:center;}
     nav.tabs button.nav-item .ico{width:20px; height:20px; margin-bottom:1px;}
-    nav.tabs button.nav-item .label-text{white-space:nowrap;}
+    nav.tabs button.nav-item .label-text{max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
     nav.tabs button.nav-item::before{display:none;}
     nav.tabs button.nav-item.active{background:linear-gradient(155deg, var(--accent), color-mix(in srgb, var(--accent) 70%, black)); color:var(--accent-ink); border-color:transparent; box-shadow:var(--glow);}
     nav.tabs button.nav-item.active .ico{opacity:1;}
