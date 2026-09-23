@@ -1,8 +1,16 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="fr" class="dark">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<!-- Colore la barre d'outils NATIVE du navigateur mobile (Samsung Internet,
+     Chrome Android...) pour qu'elle suive le thème de l'appli au lieu de
+     rester blanche par défaut : sans ça, cette barre blanche redevenait
+     visible pendant l'animation d'affichage/masquage au scroll (comportement
+     du navigateur, hors de portée du CSS de la page) — resynchronisée sur le
+     thème courant par le script de thème ci-dessous et le bouton bascule. -->
+<meta name="theme-color" content="#080a10" id="themeColorMeta">
+<meta name="color-scheme" content="dark light">
 <title>Mémoire de l'Ombre</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -40,8 +48,14 @@
     --r-lg:24px; --r-md:16px; --r-sm:12px; --r-xs:9px;
     --glow: 0 0 0 rgba(0,0,0,0);
   }
-  /* ---------- Thème sombre : "voûte" — verre + lueur ambre sur fond nuit ---------- */
-  body.dark{
+  /* ---------- Thème sombre : "voûte" — verre + lueur ambre sur fond nuit ----------
+     Sélecteur sur html.dark ET body.dark (la classe 'dark' est posée sur les
+     deux, voir le script de thème en bas de <head> et le bouton bascule) :
+     chaque élément porte alors sa propre copie de ces variables, ce qui
+     permet à html{background:var(--bg)} ci-dessous de résoudre la bonne
+     couleur — une variable posée seulement sur body.dark ne "remonterait"
+     pas jusqu'à son parent html. */
+  html.dark, body.dark{
     --bg:#080a10; --surface:#12141d; --surface-2:#191c28; --surface-hover:#232739;
     --border:#262a3c;
     --ink:#f4f0e6; --ink-soft:#9b9db1; --ink-faint:#585c72;
@@ -55,7 +69,12 @@
 
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;}
-  html{scrollbar-gutter:stable; overflow-y:scroll;}
+  /* background ici (pas seulement sur body) : sur mobile (iOS surtout), le
+     rebond élastique du scroll dépasse brièvement les bords de body et
+     révèle le fond de html — sans cette règle, un bandeau blanc (fond par
+     défaut du navigateur) apparaissait un instant sous le dock de
+     navigation avant de disparaître au repositionnement du scroll. */
+  html{scrollbar-gutter:stable; overflow-y:scroll; background:var(--bg); transition:background .25s ease;}
   body{background:var(--bg); color:var(--ink); font-family:'Space Grotesk','Plus Jakarta Sans',sans-serif; min-height:100vh; -webkit-font-smoothing:antialiased; transition:background .25s ease, color .25s ease; position:relative;}
   .mono{font-family:'IBM Plex Mono',monospace;}
   a{color:inherit;}
@@ -222,16 +241,15 @@
 
   /* Dock mobile : icône au-dessus, libellé court en dessous, pastille active dégradée */
   @media(max-width:900px){
-    /* Largeur égale (flex:1 1 0) tronquait le libellé le plus long
-       ("Catalogue"/"Dashboard") dès que 3-4 onglets se partageaient l'écran :
-       chaque bouton ne prend maintenant que la largeur de son contenu
-       (flex:0 1 auto), et space-evenly répartit l'espace libre entre eux —
-       le libellé reste toujours entier, quel que soit le nombre d'onglets
-       affichés (2 pour l'invité en galerie... jusqu'à 4 pour l'admin). */
-    nav.tabs{flex-direction:row; width:100%; gap:2px; justify-content:space-evenly;}
-    nav.tabs button.nav-item{flex:0 1 auto; min-width:0; flex-direction:column; justify-content:center; align-items:center; gap:3px; padding:8px 10px 7px; font-size:10px; font-weight:600; border-radius:14px; text-align:center;}
+    /* Largeur égale (flex:1 1 0) entre tous les onglets — nécessite que
+       nav.tabs (et son wrapper .nav-wrap juste au-dessus) occupent vraiment
+       toute la largeur du dock, sinon le libellé le plus long tronque (c'est
+       ce wrapper qui posait problème avant, pas la répartition égale en
+       elle-même — voir .sidebar .nav-wrap ci-dessus, corrigé séparément). */
+    nav.tabs{flex-direction:row; width:100%; gap:2px;}
+    nav.tabs button.nav-item{flex:1 1 0; min-width:0; flex-direction:column; justify-content:center; align-items:center; gap:3px; padding:8px 4px 7px; font-size:10px; font-weight:600; border-radius:14px; text-align:center;}
     nav.tabs button.nav-item .ico{width:20px; height:20px; margin-bottom:1px;}
-    nav.tabs button.nav-item .label-text{white-space:nowrap;}
+    nav.tabs button.nav-item .label-text{max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
     nav.tabs button.nav-item::before{display:none;}
     nav.tabs button.nav-item.active{background:linear-gradient(155deg, var(--accent), color-mix(in srgb, var(--accent) 70%, black)); color:var(--accent-ink); border-color:transparent; box-shadow:var(--glow);}
     nav.tabs button.nav-item.active .ico{opacity:1;}
@@ -715,7 +733,11 @@
      cohérentes avec le thème sombre/ambre). Voir showToast() dans le script
      additif en bas de page et #toastContainer dans le HTML. */
   .toast-container{position:fixed; right:18px; bottom:18px; z-index:1200; display:flex; flex-direction:column; gap:10px; max-width:min(360px, calc(100vw - 36px)); pointer-events:none;}
-  .toast{pointer-events:auto; display:flex; align-items:flex-start; gap:10px; padding:12px 14px; border-radius:var(--r-sm); background:var(--surface-1); border:1px solid var(--border); box-shadow:var(--shadow-md); color:var(--ink); animation:toast-in .22s ease-out;}
+  /* var(--surface-1) était une coquille : cette variable n'a jamais existé
+     (le vrai nom est --surface), donc le fond retombait sur transparent —
+     invisible partout, mais surtout illisible en mobile où le toast
+     s'affiche juste au-dessus du dock de navigation, sur du contenu. */
+  .toast{pointer-events:auto; display:flex; align-items:flex-start; gap:10px; padding:12px 14px; border-radius:var(--r-sm); background:var(--surface); border:1px solid var(--border); box-shadow:var(--shadow-md); color:var(--ink); animation:toast-in .22s ease-out;}
   .toast.error{border-color:color-mix(in srgb, var(--danger) 40%, var(--border)); box-shadow:var(--shadow-md), 0 0 0 1px color-mix(in srgb, var(--danger) 12%, transparent);}
   .toast.leaving{animation:toast-out .2s ease-in forwards;}
   .toast-icon{flex:none; width:18px; height:18px; margin-top:1px; color:var(--accent);}
@@ -965,8 +987,18 @@
 // gérés par le script principal, inchangé).
 try{
   var mdoSavedTheme = localStorage.getItem('mdo-theme');
-  if(mdoSavedTheme === 'light') document.body.classList.remove('dark');
-  else if(mdoSavedTheme === 'dark') document.body.classList.add('dark');
+  // La classe 'dark' est aussi posée sur <html> (en plus de <body>, inchangé) :
+  // sert uniquement de fond à html{background:var(--bg)} pour éviter une
+  // barre blanche lors du rebond élastique du scroll sur mobile (iOS), qui
+  // révèle brièvement le fond de <html> sous le dock de navigation.
+  var themeColorMeta = document.getElementById('themeColorMeta');
+  if(mdoSavedTheme === 'light'){
+    document.body.classList.remove('dark'); document.documentElement.classList.remove('dark');
+    if(themeColorMeta) themeColorMeta.setAttribute('content', '#f6f2e8');
+  } else if(mdoSavedTheme === 'dark'){
+    document.body.classList.add('dark'); document.documentElement.classList.add('dark');
+    if(themeColorMeta) themeColorMeta.setAttribute('content', '#080a10');
+  }
 }catch(e){ /* localStorage indisponible (navigation privée stricte, etc.) : thème par défaut conservé */ }
 </script>
 
@@ -2489,6 +2521,10 @@ let CATALOGUE_VIEW_MODE = 'cards';
 const CATALOGUE_PAGE_SIZE = 30;
 let CATALOGUE_ITEMS = [];
 let CATALOGUE_RENDERED = 0;
+// Position de scroll mémorisée au moment de quitter la liste pour ouvrir une
+// fiche, afin de la restaurer au retour (voir wireGridItem() / #backBtn /
+// popstate) plutôt que de toujours revenir en haut du catalogue.
+let CATALOGUE_SCROLL_Y = 0;
 let catalogueObserver = null;
 
 // Génère le HTML d'une carte du catalogue (vue "cartes").
@@ -2529,6 +2565,7 @@ function wireGridItem(el){
   el.addEventListener('click', (e)=>{
     if(e.metaKey || e.ctrlKey || e.shiftKey || e.button===1) return;
     e.preventDefault();
+    CATALOGUE_SCROLL_Y = window.scrollY;
     openFiche(el.dataset.uid);
   });
 }
@@ -2706,6 +2743,25 @@ function renderNextBatch(){
   newNodes.forEach(node => { grid.appendChild(node); wireGridItem(node); });
   CATALOGUE_RENDERED += batch.length;
   hydrateCachedImages(grid, newNodes);
+}
+
+// Restaure la position de scroll mémorisée (CATALOGUE_SCROLL_Y) après un
+// retour à la liste. Comme le catalogue n'affiche au départ qu'un seul lot
+// de CATALOGUE_PAGE_SIZE objets (scroll infini), on réaffiche d'abord assez
+// de lots supplémentaires pour que la page soit physiquement assez haute —
+// sinon on retomberait en bas d'une grille tronquée plutôt qu'à l'endroit
+// exact où on était avant d'ouvrir la fiche.
+function restoreCatalogueScroll(targetY){
+  let guard = 0;
+  while(
+    document.documentElement.scrollHeight < targetY + window.innerHeight &&
+    CATALOGUE_RENDERED < CATALOGUE_ITEMS.length &&
+    guard < 500
+  ){
+    renderNextBatch();
+    guard++;
+  }
+  window.scrollTo({top: targetY, behavior: 'instant'});
 }
 
 let CURRENT_FICHE_UID = null;
@@ -3388,11 +3444,14 @@ document.getElementById('backBtn').addEventListener('click', ()=>{
   document.querySelectorAll('.chip[data-filter]').forEach(c=>c.classList.toggle('active', c.dataset.filter===LAST_CAT_FILTER));
   document.getElementById('searchInput').value = LAST_CAT_QUERY;
   renderGrid(LAST_CAT_FILTER, LAST_CAT_QUERY);
-  window.scrollTo({top: 0, behavior: 'instant'});
+  restoreCatalogueScroll(CATALOGUE_SCROLL_Y);
 });
 document.getElementById('newObjetBtn').addEventListener('click', ()=> openForm('create', null));
 document.getElementById('darkModeBtn').addEventListener('click', ()=>{
   const isDark = document.body.classList.toggle('dark');
+  document.documentElement.classList.toggle('dark', isDark); // garde <html> synchro avec <body>, voir html{background:var(--bg)}
+  const themeColorMeta = document.getElementById('themeColorMeta');
+  if(themeColorMeta) themeColorMeta.setAttribute('content', isDark ? '#080a10' : '#f6f2e8'); // barre d'outils native du navigateur mobile (voir <meta name="theme-color"> dans <head>)
   document.getElementById('darkModeBtn').textContent = isDark ? '☀️' : '🌙';
   if(franceTileLayer) franceTileLayer.setUrl(tileUrlFor(isDark));
   if(franceMap) setTimeout(()=> franceMap.invalidateSize(), 50);
@@ -3517,6 +3576,15 @@ document.getElementById('advSearchReset').addEventListener('click', ()=>{
   renderGrid(active, document.getElementById('searchInput').value);
 });
 try{
+  // Désactive la restauration de scroll automatique du navigateur : sur un
+  // retour arrière (popstate), Chrome/Safari tentent sinon de repositionner
+  // le scroll eux-mêmes en même temps que restoreCatalogueScroll() plus bas,
+  // et ce comportement natif l'emporte souvent sur le nôtre. En mode
+  // "manual" c'est uniquement notre code (voir le handler popstate) qui
+  // décide de la position finale.
+  if('scrollRestoration' in history) history.scrollRestoration = 'manual';
+}catch(err){ /* Contexte restreint (ex: aperçu en iframe) */ }
+try{
   // Etat initial de l'historique, SANS toucher à l'URL affichée : les
   // cartes/lignes du catalogue sont déjà de vrais liens <a href="?obj=uid">
   // (voir cardHtml()/listRowHtml()), donc un clic droit "Ouvrir le lien dans
@@ -3543,6 +3611,7 @@ window.addEventListener('popstate', (e)=>{
       document.querySelectorAll('.chip[data-filter]').forEach(c=>c.classList.toggle('active', c.dataset.filter===LAST_CAT_FILTER));
       document.getElementById('searchInput').value = LAST_CAT_QUERY;
       renderGrid(LAST_CAT_FILTER, LAST_CAT_QUERY);
+      restoreCatalogueScroll(CATALOGUE_SCROLL_Y);
     }
     if((state.view||'dashboard')==='dashboard' && franceMap) setTimeout(()=> franceMap.invalidateSize(), 50);
   }
@@ -5017,6 +5086,10 @@ let WISHLIST_SORT = 'titre'; // même mécanisme que CURRENT_SORT/sortItems() du
 let WISHLIST_VIEW_MODE = 'cards'; // 'cards' | 'list' — même mécanisme que CATALOGUE_VIEW_MODE
 let WISHLIST_FILTER = 'Tous'; // même mécanisme que LAST_CAT_FILTER (chips data-wish-filter)
 let WISHLIST_QUERY = ''; // recherche texte propre aux souhaits (#wishSearchInput)
+// Position de scroll mémorisée en quittant la liste des souhaits pour ouvrir
+// une fiche, restaurée au retour (même principe que CATALOGUE_SCROLL_Y) —
+// pas de rendu par lots ici, renderWishlist() affiche tout d'un coup.
+let WISHLIST_SCROLL_Y = 0;
 
 async function loadWishlist(){
   const grid = document.getElementById('wishlistGrid');
@@ -5740,9 +5813,15 @@ async function saveWish(){
     });
   }
 
-  // "← Retour aux souhaits" depuis la fiche.
+  // "← Retour aux souhaits" depuis la fiche — restaure la position de scroll
+  // mémorisée au moment d'ouvrir la fiche plutôt que de revenir en haut.
   const wishFicheBackBtn = document.getElementById('wishFicheBackBtn');
-  if(wishFicheBackBtn) wishFicheBackBtn.addEventListener('click', ()=> switchView('wishlist'));
+  if(wishFicheBackBtn){
+    wishFicheBackBtn.addEventListener('click', ()=>{
+      switchView('wishlist');
+      window.scrollTo({top: WISHLIST_SCROLL_Y, behavior: 'instant'});
+    });
+  }
 
   // Clic sur une carte ou une ligne du listing -> ouvre la fiche du souhait
   // (délégation d'événement, comme le catalogue avec wireGridItem() —
@@ -5755,6 +5834,7 @@ async function saveWish(){
       if(!card) return;
       const w = ALL_WISHLIST.find(x => String(x.id) === card.dataset.wishId);
       if(!w) return;
+      WISHLIST_SCROLL_Y = window.scrollY;
       openWishFiche(w);
     });
   }
