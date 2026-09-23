@@ -457,23 +457,6 @@
   .auth-status{display:none;}
 
   /* ---------- KPI cards ---------- */
-  /* ---------- Profil v2 (en-tête identité + accès rapides) ---------- */
-  .profil-header{margin-bottom:22px;}
-  .profil-identity{display:flex; align-items:center; gap:14px; padding:6px 2px 18px;}
-  .profil-avatar{width:52px; height:52px; border-radius:50%; background:var(--surface-2); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; color:var(--accent); flex:none;}
-  .profil-avatar svg{width:26px; height:26px;}
-  .profil-identity-title{font-family:'Space Grotesk',sans-serif; font-size:16px; font-weight:600; color:var(--ink); margin-bottom:3px;}
-  .profil-identity-status{display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--ink-soft);}
-  .profil-actions{display:flex; flex-direction:column; gap:1px; background:var(--border); border:1px solid var(--border); border-radius:var(--r-md); overflow:hidden;}
-  .profil-action-row{display:flex; align-items:center; gap:12px; width:100%; box-sizing:border-box; padding:13px 15px; background:var(--surface); border:none; cursor:pointer; font-family:inherit; font-size:13.5px; color:var(--ink); text-align:left;}
-  .profil-action-row:hover{background:var(--accent-soft);}
-  .profil-action-row .ico{color:var(--ink-soft); flex:none; display:flex;}
-  .profil-action-row .ico svg{width:19px; height:19px;}
-  .profil-action-label{flex:1; min-width:0;}
-  .profil-action-chevron{color:var(--ink-faint); flex:none; display:flex;}
-  .profil-action-chevron svg{width:16px; height:16px;}
-  .profil-stats-heading{font-family:'Space Grotesk',sans-serif; font-size:14.5px; font-weight:600; color:var(--ink); margin:0 0 12px;}
-
   .kpi-row{display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:24px; min-width:0;}
   @media(max-width:760px){.kpi-row{grid-template-columns:repeat(2,1fr);}}
   .kpi{background:var(--surface); border:1px solid var(--border); border-radius:var(--r-lg); padding:18px 20px 20px; min-width:0; box-shadow:var(--shadow); position:relative; overflow:hidden; transition:box-shadow .2s ease, transform .2s ease, border-color .2s ease;}
@@ -784,31 +767,6 @@
   .adv-field label{font-size:10.5px; color:var(--ink-soft); font-weight:600; text-transform:uppercase; letter-spacing:.04em;}
   @media(max-width:600px){.adv-search-panel{flex-direction:column; align-items:stretch; gap:12px;}}
 
-  /* ---------- Filtres → feuille modale sur mobile (refonte v6, façon Le Bon Coin) ----------
-     Le panneau reste géré par le même JS existant (panel.style.display =
-     'flex'/'none', inchangé) ; on ne fait que le repositionner en feuille
-     fixée au bas de l'écran quand il est visible, plus une trame assombrie
-     réelle derrière (cliquable pour refermer, voir petit script additif en
-     bas de page). ::before ajoute juste la poignée visuelle de la feuille. */
-  .adv-scrim{display:none;}
-  @media(max-width:900px){
-    .adv-scrim{display:none; position:fixed; inset:0; z-index:65; background:rgba(4,5,9,.62); -webkit-backdrop-filter:blur(2px); backdrop-filter:blur(2px);}
-    body:has(#advSearchPanel[style*="flex"]) .adv-scrim{display:block;}
-    .adv-search-panel{
-      position:fixed; left:0; right:0; bottom:0; top:auto; z-index:70;
-      margin:0; max-height:82vh; overflow-y:auto;
-      border-radius:22px 22px 0 0; border-bottom:none;
-      box-shadow:0 -20px 44px -20px rgba(0,0,0,.55);
-      padding:14px 18px calc(18px + env(safe-area-inset-bottom,0px));
-    }
-    .adv-search-panel::before{content:""; display:block; width:34px; height:4px; border-radius:100px; background:var(--border); margin:0 auto 6px;}
-    .adv-chip{height:38px; font-size:12.5px; padding:0 14px;}
-    .adv-field label{font-size:11px;}
-    .adv-search-panel > .adv-field:last-of-type{margin-left:0 !important; margin-top:2px; position:sticky; bottom:0; background:var(--surface-2); padding-top:10px;}
-    .adv-search-panel > .adv-field:last-of-type label{display:none;}
-    .adv-reset-btn{width:100%; height:44px; border-radius:100px; font-size:13px;}
-  }
-
   /* Select natif (même id, même événement "change" côté JS) — desktop : forme
      d'origine (rectangulaire, pas arrondi comme les chips), flèche native du
      navigateur intouchée (appearance:auto), aucune icône. */
@@ -850,49 +808,14 @@
   .chip:hover{border-color:var(--accent);}
   .chip.active{background:var(--accent); border-color:var(--accent); color:var(--accent-ink); box-shadow:var(--glow);}
 
-  /* ---------- Accueil v2 (bandeau léger + rail "Derniers ajouts") ---------- */
-  .accueil-hero{padding:16px 2px 2px;}
-  .accueil-hero-kicker{font-family:'IBM Plex Mono',monospace; font-size:10.5px; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-faint); margin-bottom:4px;}
-  .accueil-hero-count{font-family:'Space Grotesk',sans-serif; font-size:18px; font-weight:600; color:var(--ink); line-height:1.35;}
-  .accueil-rail-block{margin:16px 0 20px;}
-  .accueil-rail-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;}
-  .accueil-rail-head h2{font-family:'Space Grotesk',sans-serif; font-size:14.5px; font-weight:600; margin:0; color:var(--ink);}
-  .accueil-rail{display:flex; gap:12px; overflow-x:auto; padding-bottom:6px; scroll-snap-type:x proximity; -webkit-overflow-scrolling:touch; scrollbar-width:none;}
-  .accueil-rail::-webkit-scrollbar{display:none;}
-  .rail-card{flex:none; width:128px; scroll-snap-align:start; text-decoration:none; color:inherit; cursor:pointer;}
-  .rail-card .thumb-cover{width:128px; height:128px; border-radius:var(--r-md); border:1px solid var(--border);}
-  .rail-card .rail-titre{font-family:'Space Grotesk',sans-serif; font-size:12px; font-weight:500; margin-top:6px; line-height:1.25; overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;}
-  .rail-card .rail-id{font-family:'IBM Plex Mono',monospace; font-size:9px; color:var(--ink-faint); margin-top:2px;}
-
-  /* ---------- Recherche v2 ---------- */
-  .recherche-searchbar{padding:14px 2px 16px;}
-  .recherche-searchbar input{width:100%; height:44px; border-radius:100px; border:1px solid var(--border); background:var(--surface); color:var(--ink); padding:0 18px; font-size:14px; box-sizing:border-box; font-family:inherit;}
-  .recherche-searchbar input::placeholder{color:var(--ink-faint);}
-  .recherche-searchbar input:focus{outline:none; border-color:var(--accent); box-shadow:var(--glow);}
-  .recherche-section{margin-bottom:22px;}
-  .recherche-section h2{font-family:'Space Grotesk',sans-serif; font-size:14.5px; font-weight:600; margin:0 0 10px; color:var(--ink);}
-  .recherche-recent-chips{display:flex; flex-wrap:wrap; gap:8px;}
-  .recherche-recent-chip{background:var(--surface-2);}
-  .recherche-cat-grid{display:grid; grid-template-columns:repeat(2,1fr); gap:10px;}
-  .recherche-cat-tile{display:flex; align-items:center; justify-content:space-between; gap:8px; text-align:left; background:var(--surface); border:1px solid var(--border); border-radius:var(--r-md); padding:14px 15px; cursor:pointer; font-family:inherit; color:var(--ink); transition:border-color .12s ease, box-shadow .15s ease;}
-  .recherche-cat-tile:hover{border-color:var(--accent); box-shadow:var(--glow);}
-  .recherche-cat-label{font-size:13px; font-weight:500;}
-  .recherche-cat-count{font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--ink-faint); background:var(--surface-2); border-radius:100px; padding:2px 8px; flex:none;}
-  .recherche-results-count{font-family:'IBM Plex Mono',monospace; font-size:11.5px; color:var(--ink-soft); margin-bottom:14px;}
-  @media(min-width:640px){ .recherche-cat-grid{grid-template-columns:repeat(3,1fr);} }
-
   /* ---------- Catalogue grid / list ---------- */
   .grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:16px;}
   .fiche-mini{background:var(--surface); border:1px solid var(--border); border-radius:var(--r-md); overflow:hidden; cursor:pointer; transition:box-shadow .2s ease, transform .2s ease, border-color .2s ease; text-decoration:none; color:inherit; display:block;}
   .fiche-mini:hover{box-shadow:var(--shadow-md), var(--glow); transform:translateY(-3px); border-color:color-mix(in srgb, var(--accent) 50%, var(--border));}
-  /* Vignette unique "photo-first" (refonte mobile v6) — remplace l'ancien
-     thumb-pair recto/verso côte à côte : une seule photo de couverture
-     (thumbListHtml : recto en priorité), badge de rareté en overlay. Le
-     verso et les autres photos restent consultables sur la fiche complète. */
-  .thumb-cover{position:relative; aspect-ratio:1/1; background:var(--surface-2); display:flex; align-items:center; justify-content:center; color:var(--ink-faint); overflow:hidden;}
-  .thumb-cover svg{width:28%; height:28%; opacity:.35;}
-  .thumb-cover img{width:100%; height:100%; object-fit:cover; display:block;}
-  .rare-badge{position:absolute; top:9px; left:9px; font-family:'IBM Plex Mono',monospace; font-size:10.5px; font-weight:700; letter-spacing:.02em; color:var(--accent); background:color-mix(in srgb, var(--surface) 72%, transparent); -webkit-backdrop-filter:blur(6px); backdrop-filter:blur(6px); border:1px solid color-mix(in srgb, var(--accent) 30%, var(--border)); padding:3px 8px; border-radius:100px; line-height:1.3;}
+  .thumb-pair{display:grid; grid-template-columns:1fr 1fr; gap:1px; background:var(--border);}
+  .thumb{aspect-ratio:1/1; background:var(--surface-2); display:flex; align-items:center; justify-content:center; flex-direction:column; color:var(--ink-faint); font-size:10px; font-family:'IBM Plex Mono',monospace;}
+  .thumb svg{width:24px; height:24px; opacity:.35; margin-bottom:4px;}
+  .thumb img{width:100%; height:100%; object-fit:cover;}
   .fiche-mini .body{padding:13px 14px 14px;}
   .fiche-mini .id{font-family:'IBM Plex Mono',monospace; font-size:10px; color:var(--ink-faint); font-weight:600;}
   .fiche-mini .titre{font-family:'Space Grotesk',sans-serif; font-size:15.5px; font-weight:500; margin:5px 0 3px; line-height:1.3;}
@@ -914,22 +837,6 @@
   .fiche-list-row .dots{flex:none;}
   @media(max-width:700px){.fiche-list-row .sec{display:none;} .fiche-list-row .id{width:60px;}}
   @media(max-width:520px){.fiche-list-row .prix{display:none;}}
-
-  /* ---------- Catalogue mobile (refonte v6, inspirée Vinted/Le Bon Coin) ----------
-     Grille à 2 colonnes fixes (au lieu d'auto-fill qui retombait à 1 colonne
-     géante en dessous de ~480px) + bascule cartes/liste masquée : la vue
-     liste (tableau dense) est peu adaptée au tactile, la vue cartes reste
-     seule disponible sur mobile (CATALOGUE_VIEW_MODE vaut déjà 'cards' par
-     défaut, rien à changer côté JS). */
-  @media(max-width:640px){
-    .grid{grid-template-columns:repeat(2,1fr); gap:10px;}
-    .fiche-mini .body{padding:9px 10px 10px;}
-    .fiche-mini .titre{font-size:12.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-    .fiche-mini .id{font-size:8.5px;}
-    .fiche-mini .sec{font-size:10px; margin-bottom:7px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-    .fiche-mini .prix{font-size:10.5px;}
-  }
-  @media(max-width:900px){ .view-toggle{display:none;} }
 
   /* ---------- Fiche détail ---------- */
   .fiche-back{font-size:12.5px; font-weight:600; color:var(--accent); background:none; border:none; cursor:pointer; margin-bottom:18px; padding:0; display:inline-flex; align-items:center; gap:6px;}
@@ -976,47 +883,6 @@
   .rich-text a{color:var(--accent); text-decoration:underline; word-break:break-word;}
   .field-hint{font-size:11px; color:var(--ink-faint); margin-top:4px; font-style:italic;}
   .field-row .v.mono{font-family:'IBM Plex Mono',monospace; font-size:13px;}
-
-  /* ---------- Fiche objet : pastilles d'état + sections repliables (refonte mobile v6) ----------
-     Pastilles rareté/état/authenticité juste sous le titre (lisibles d'un
-     coup d'œil, façon Vinted), champs techniques regroupés en <details>
-     natifs (zéro JS : accessibles au clavier, comportement de repli géré
-     par le navigateur). Sur desktop (≥900px) les deux sections restent
-     visuellement toujours ouvertes — même contenu qu'avant la refonte,
-     seul le mobile bénéficie du repli. */
-  .badge-row{display:flex; flex-wrap:wrap; gap:8px; padding:14px 26px 0;}
-  .stat-badge{font-size:12px; font-weight:600; padding:7px 13px; border-radius:100px; border:1px solid var(--border); background:var(--surface-2); color:var(--ink-soft); display:inline-flex; align-items:center; gap:6px;}
-  .stat-badge.accentb{color:var(--accent); border-color:color-mix(in srgb, var(--accent) 32%, var(--border)); background:var(--accent-soft); font-weight:700;}
-  @media(max-width:600px){.badge-row{padding:12px 20px 0; gap:6px;} .stat-badge{font-size:11px; padding:6px 11px;}}
-
-  .field-acc{border:1px solid var(--border); border-radius:var(--r-md); overflow:hidden; margin-bottom:14px; background:var(--surface-2);}
-  .field-acc:last-child{margin-bottom:0;}
-  .field-acc > summary{list-style:none; cursor:pointer; display:flex; align-items:center; justify-content:space-between; padding:13px 16px; font-weight:700; font-size:13.5px; user-select:none;}
-  .field-acc > summary::-webkit-details-marker{display:none;}
-  .field-acc > summary .acc-caret{width:15px; height:15px; color:var(--ink-faint); transition:transform .18s ease; flex:none;}
-  .field-acc[open] > summary .acc-caret{transform:rotate(180deg);}
-  .field-acc > summary:hover{background:var(--surface-hover);}
-  .field-acc .acc-body{padding:2px 16px 12px; background:var(--surface);}
-  .field-acc .acc-body .field-row:last-child{border-bottom:none;}
-  @media(min-width:900px){
-    /* Desktop : contenu toujours visible, l'accordéon perd son interactivité
-       plutôt que d'être retiré du DOM (évite de dupliquer le gabarit). */
-    .field-acc:not([open]) > .acc-body{display:block !important;}
-    .field-acc > summary{cursor:default; pointer-events:none;}
-    .field-acc > summary .acc-caret{display:none;}
-  }
-
-  /* ---------- Bloc privé de la fiche : 3 tuiles compactes sur mobile ----------
-     .mont-hero est partagé avec le dashboard (dont le comportement mobile
-     — 1 colonne en dessous de 520px — reste inchangé) ; la classe
-     .fiche-priv restreint cette version compacte à la seule fiche objet. */
-  @media(max-width:640px){
-    .fiche-priv .mont-hero{grid-template-columns:repeat(3,1fr); gap:8px;}
-    .fiche-priv .mont-hero-card{padding:10px 8px; border-radius:12px;}
-    .fiche-priv .mont-hero-card .label{font-size:8.5px;}
-    .fiche-priv .mont-hero-card .value{font-size:13.5px; margin-top:3px;}
-    .fiche-priv .mont-hero-card .sub{font-size:8px; margin-top:2px;}
-  }
 
   /* ---------- Photos ---------- */
   .photo-upload-row{display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:8px;}
@@ -1122,17 +988,8 @@ try{
 
     <div class="nav-wrap">
       <nav class="tabs" id="tabs">
-        <!-- v2 : navigation à 5 onglets, sans page d'accueil "dashboard".
-             Les id internes des vues ("dashboard", "catalogue"…) ne changent
-             PAS — seuls le libellé, l'icône, l'ordre et le contenu affiché
-             changent — pour ne rien casser dans switchView()/pushNav() qui
-             sont 100% génériques (getElementById('view-'+name)). -->
-        <!-- "Accueil" = l'ancien onglet Catalogue, devenu l'écran de démarrage. -->
-        <button class="nav-item active" data-view="catalogue"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 9.5V19a1 1 0 0 0 1 1H10v-5.5h4V20h3.5a1 1 0 0 0 1-1V9.5"/></svg></span><span class="label-text">Accueil</span></button>
-        <!-- Nouvel onglet "Recherche" (data-view="recherche") : traité de façon
-             100% générique par switchView()/pushNav(), la section
-             #view-recherche est ajoutée plus bas dans le HTML. -->
-        <button class="nav-item" data-view="recherche"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg></span><span class="label-text">Recherche</span></button>
+        <button class="nav-item active" data-view="dashboard"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg></span><span class="label-text">Dashboard</span></button>
+        <button class="nav-item" data-view="catalogue"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="5" rx="1.5"/><path d="M5 9v9a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V9"/><path d="M10 13h4"/></svg></span><span class="label-text">Catalogue</span></button>
         <!-- Onglet Galerie : data-view="galerie" est traité de façon 100% générique
              par le gestionnaire de clic existant sur #tabs et par switchView()
              (getElementById('view-'+name)) — aucune modification du script
@@ -1147,9 +1004,6 @@ try{
              existant sur #tabs et par switchView() — aucune modification du
              script principal nécessaire pour que cet onglet fonctionne. -->
         <button class="nav-item" data-view="wishlist" id="wishlistTabBtn" style="display:none;"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17.3 6.2 21l1.6-6.6L2.5 9.8l6.8-.6L12 3l2.7 6.2 6.8.6-5.3 4.6 1.6 6.6z"/></svg></span><span class="label-text">Souhaits</span></button>
-        <!-- "Profil" = l'ancien onglet Dashboard (id interne inchangé : "dashboard"),
-             devenu l'onglet de statistiques/compte plutôt que l'écran de démarrage. -->
-        <button class="nav-item" data-view="dashboard"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg></span><span class="label-text">Profil</span></button>
         <!-- Pas d'onglet "Fiche" dans ce menu : une fiche d'objet n'est pas une
              section de premier niveau, on y arrive toujours depuis le catalogue,
              la galerie ou le tableau de bord, et le bouton "Retour" de la fiche
@@ -1374,42 +1228,7 @@ try{
            Voir showToast() dans le script additif en bas de page. -->
       <div id="toastContainer" class="toast-container" aria-live="polite"></div>
 
-      <section class="view" id="view-dashboard">
-        <!-- v2 "Profil" : en-tête identité + accès rapides, préfixé au tableau
-             de bord existant (KPI/bento/carte de France inchangés plus bas).
-             Aucune logique métier dupliquée : #profilSettingsBtn et
-             #profilLoginBtn déclenchent un clic réel sur #mobileSettingsBtn et
-             #loginBtn (mêmes règles que le pied de menu desktop existant,
-             voir #sidebarSettingsBtn/#sidebarLoginBtn), un MutationObserver
-             recopie ensuite juste le libellé/statut résultant. Pas de mode
-             invité / lien public ici : uniquement les fonctions réelles de
-             l'application (paramètres, connexion/déconnexion admin). -->
-        <div class="profil-header">
-          <div class="profil-identity">
-            <div class="profil-avatar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg></div>
-            <div class="profil-identity-text">
-              <div class="profil-identity-title">Mémoire de l'Ombre</div>
-              <div class="profil-identity-status">
-                <span class="status-dot" id="profilStatusDot"></span>
-                <span id="profilStatusText">Invité</span>
-              </div>
-            </div>
-          </div>
-          <div class="profil-actions">
-            <button class="profil-action-row" id="profilSettingsBtn" type="button">
-              <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span>
-              <span class="profil-action-label">Paramètres</span>
-              <span class="profil-action-chevron"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg></span>
-            </button>
-            <button class="profil-action-row" id="profilLoginBtn" type="button">
-              <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="15" r="4"/><path d="M11 12 20 3M17 6l2 2M14 9l2 2"/></svg></span>
-              <span class="profil-action-label" id="profilLoginBtnLabel">Connexion administrateur</span>
-              <span class="profil-action-chevron"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg></span>
-            </button>
-          </div>
-        </div>
-
-        <h2 class="profil-stats-heading">Statistiques de la collection</h2>
+      <section class="view active" id="view-dashboard">
         <div class="kpi-row">
           <div class="kpi"><div class="kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m3.5 7 8.5-4 8.5 4-8.5 4-8.5-4Z"/><path d="M3.5 7v10l8.5 4 8.5-4V7"/><path d="M12 11v10"/></svg></div><div class="label">Objets recensés</div><div class="value" id="kpiCount">—</div></div>
           <div class="kpi"><div class="kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-6.4 7-11.5A7 7 0 0 0 5 9.5C5 14.6 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.3"/></svg></div><div class="label">Départements couverts</div><div class="value" id="kpiDepts">—</div></div>
@@ -1537,26 +1356,7 @@ try{
         </div>
       </section>
 
-      <section class="view active" id="view-catalogue">
-        <!-- v2 "Accueil" : bandeau d'accroche léger + rail "Derniers ajouts",
-             préfixés au catalogue existant (aucune logique de recherche/tri/
-             grille/scroll infini dupliquée). Peuplé par renderAccueilHighlights()
-             et renderDerniersAjoutsRail(), appelées depuis loadAll() juste après
-             renderGrid('Tous','') — voir script additif en bas de page. -->
-        <div class="accueil-hero" id="accueilHero">
-          <div class="accueil-hero-text">
-            <div class="accueil-hero-kicker">Mémoire de l'Ombre</div>
-            <div class="accueil-hero-count" id="accueilHeroCount">Chargement de la collection…</div>
-          </div>
-        </div>
-
-        <div class="accueil-rail-block" id="accueilRailBlock" style="display:none;">
-          <div class="accueil-rail-head">
-            <h2>Derniers ajouts</h2>
-          </div>
-          <div class="accueil-rail" id="accueilRail"></div>
-        </div>
-
+      <section class="view" id="view-catalogue">
         <div class="cat-toolbar">
           <div class="cat-toolbar-left">
             <span id="deptFilterTag" style="display:none; align-items:center;"></span>
@@ -1592,11 +1392,6 @@ try{
           </div>
         </div>
 
-        <!-- Trame de fond assombrie derrière la feuille de filtres sur mobile (refonte v6) :
-             élément réel (pas un pseudo-élément) pour pouvoir y attacher un clic de fermeture,
-             affiché uniquement quand #advSearchPanel est ouvert (voir CSS :has() plus bas et
-             le petit script additif en bas de page qui l'écoute). -->
-        <div id="advSearchScrim" class="adv-scrim"></div>
         <div id="advSearchPanel" class="adv-search-panel" style="display:none;">
           <div class="adv-field">
             <label>Rareté</label>
@@ -1646,17 +1441,6 @@ try{
         </div>
         <div class="grid" id="catalogueGrid"><div class="state-msg">Chargement de la collection…</div></div>
         <div id="catalogueSentinel" style="height:1px;"></div>
-      </section>
-
-      <!-- v2 "Recherche" : écran dédié à la recherche/exploration (distinct de
-           l'Accueil). Contenu peuplé par renderRechercheView(), appelée au
-           premier affichage de l'onglet (voir script additif en bas de page) —
-           réutilise ALL_OBJETS déjà chargé, aucune requête dupliquée. -->
-      <section class="view" id="view-recherche">
-        <div class="recherche-searchbar">
-          <input type="search" id="rechercheInput" placeholder="Rechercher un objet, un fabricant, un lieu…" autocomplete="off">
-        </div>
-        <div class="recherche-body" id="rechercheBody"></div>
       </section>
 
       <!-- Galerie : simple grille façon Instagram (tuiles carrées, taille
@@ -1981,8 +1765,6 @@ function formatRichText(text){
 const raretePos = code => ({X:1,XX:2,XXX:3,XXXX:4,M:5}[code] || 0);
 // Génère les points de la pastille de rareté (1 à 5 points selon l'indice).
 function dotsHtml(pos){ let h=''; for(let i=1;i<=5;i++) h += `<span class="dot ${i<=pos?'on':''}"></span>`; return h; }
-// Libellés de rareté partagés (dashboard + pastilles de la fiche mobile, voir showFiche()).
-const RARETE_DESC = {X:'Courant', XX:'Peu courant', XXX:'Rare', XXXX:'Rarissime', M:'Pièce de musée'};
 
 let ALL_OBJETS = [];
 let PHOTOS_BY_OBJET = {};
@@ -2101,8 +1883,6 @@ async function loadAll(){
   const { data: objets, error } = await sb.from(source).select('*').order('id_public');
   if(error){
     document.getElementById('catalogueGrid').innerHTML = `<div class="state-msg">Erreur de connexion à la base : ${error.message}</div>`;
-    const heroCount = document.getElementById('accueilHeroCount');
-    if(heroCount) heroCount.textContent = 'Erreur de connexion à la base.';
     return;
   }
   ALL_OBJETS = objets || [];
@@ -2130,8 +1910,6 @@ async function loadAll(){
 
   renderDashboard();
   renderGrid('Tous','');
-  renderAccueilHighlights();
-  renderAccueilRail();
 
   const params = new URLSearchParams(window.location.search);
   const objParam = params.get('obj');
@@ -2569,176 +2347,6 @@ function renderDerniersAjoutes(){
   hydrateCachedImages(document.getElementById('derniersList'));
 }
 
-// ============================================================
-// v2 "Accueil" — bandeau d'accroche léger + rail "Derniers ajouts"
-// (voir #view-catalogue dans le HTML). Ce n'est pas un dashboard : pas de
-// chiffres financiers ni de graphiques ici, juste un repère rapide sur la
-// collection et un raccourci visuel vers les objets les plus récents.
-// Réutilise ALL_OBJETS / PHOTOS_BY_OBJET déjà chargés par loadAll(),
-// exactement les mêmes données que renderDerniersAjoutes() ci-dessus
-// (même tri par created_at) — aucune requête dupliquée.
-// ============================================================
-function renderAccueilHighlights(){
-  const el = document.getElementById('accueilHeroCount');
-  if(!el) return;
-  const total = ALL_OBJETS.length;
-  if(total === 0){
-    el.textContent = 'Votre collection est vide pour le moment.';
-    return;
-  }
-  const regions = new Set(ALL_OBJETS.map(o=>o.region).filter(Boolean));
-  const parts = [`${total} pièce${total>1?'s':''} dans la collection`];
-  if(regions.size > 0) parts.push(`${regions.size} région${regions.size>1?'s':''} représentée${regions.size>1?'s':''}`);
-  el.textContent = parts.join(' · ');
-}
-
-function railCardHtml(o){
-  return `
-    <a class="rail-card" href="?obj=${o.uid}" data-uid="${o.uid}">
-      <div class="thumb-cover">
-        ${thumbListHtml(o)}
-        ${o.indice_rarete ? `<span class="rare-badge">${esc(o.indice_rarete)}</span>` : ''}
-      </div>
-      <div class="rail-titre">${esc(o.titre)}</div>
-      <div class="rail-id">${esc(o.id_public)}</div>
-    </a>
-  `;
-}
-
-function renderAccueilRail(){
-  const block = document.getElementById('accueilRailBlock');
-  const rail = document.getElementById('accueilRail');
-  if(!block || !rail) return;
-  const sorted = [...ALL_OBJETS].filter(o=>o.created_at).sort((a,b)=> new Date(b.created_at)-new Date(a.created_at)).slice(0,10);
-  if(sorted.length === 0){
-    block.style.display = 'none';
-    return;
-  }
-  block.style.display = '';
-  rail.innerHTML = sorted.map(railCardHtml).join('');
-  rail.querySelectorAll('.rail-card').forEach(wireGridItem);
-  hydrateCachedImages(rail);
-}
-
-// ============================================================
-// v2 "Recherche" — écran de découverte/recherche dédié (#view-recherche).
-// Réutilise ALL_OBJETS déjà chargé et le même algorithme de correspondance
-// texte que renderGrid() (aucune requête dupliquée), et le format carte du
-// catalogue (cardHtml/wireGridItem/hydrateCachedImages) pour les résultats.
-// Les catégories renvoient vers l'Accueil (catalogue) avec le filtre déjà
-// appliqué plutôt que de dupliquer le tri/scroll infini ici.
-// ============================================================
-const RECHERCHE_CATS = [
-  {label:'Insignes', filter:'Insigne'},
-  {label:'Brassards', filter:'Brassard'},
-  {label:'Médailles', filter:'Médaille'},
-  {label:'Médailles de table', filter:'Médaille de table'},
-  {label:'Documents', filter:'Document'},
-  {label:'Livres', filter:'Livre'},
-  {label:'Porte-clés', filter:'Porte-clés'},
-  {label:'Breloques', filter:'Breloque'},
-  {label:'À classer', filter:'À classer'},
-  {label:'Divers', filter:'Divers'}
-];
-
-const RECENT_SEARCHES_KEY = 'mdo_recent_searches';
-function getRecentSearches(){
-  try{ return JSON.parse(localStorage.getItem(RECENT_SEARCHES_KEY) || '[]'); }
-  catch(e){ return []; }
-}
-function saveRecentSearch(q){
-  q = (q||'').trim();
-  if(!q) return;
-  try{
-    let list = getRecentSearches().filter(s=> s.toLowerCase() !== q.toLowerCase());
-    list.unshift(q);
-    localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(list.slice(0,8)));
-  }catch(e){ /* stockage indisponible (navigation privée…) — non bloquant */ }
-}
-
-function renderRechercheDiscovery(){
-  const body = document.getElementById('rechercheBody');
-  if(!body) return;
-  const counts = {};
-  ALL_OBJETS.forEach(o=>{ counts[o.type_objet] = (counts[o.type_objet]||0) + 1; });
-  const recent = getRecentSearches();
-  body.innerHTML = `
-    ${recent.length ? `
-      <div class="recherche-section">
-        <h2>Recherches récentes</h2>
-        <div class="recherche-recent-chips">
-          ${recent.map(q=>`<span class="chip recherche-recent-chip" data-q="${esc(q)}">${esc(q)}</span>`).join('')}
-        </div>
-      </div>
-    ` : ''}
-    <div class="recherche-section">
-      <h2>Parcourir par catégorie</h2>
-      <div class="recherche-cat-grid">
-        ${RECHERCHE_CATS.map(c=>`
-          <button class="recherche-cat-tile" data-filter="${esc(c.filter)}" type="button">
-            <span class="recherche-cat-label">${esc(c.label)}</span>
-            <span class="recherche-cat-count">${counts[c.filter]||0}</span>
-          </button>
-        `).join('')}
-      </div>
-    </div>
-  `;
-  body.querySelectorAll('.recherche-recent-chip').forEach(chip=>{
-    chip.addEventListener('click', ()=>{
-      document.getElementById('rechercheInput').value = chip.dataset.q;
-      saveRecentSearch(chip.dataset.q);
-      renderRechercheResults(chip.dataset.q);
-    });
-  });
-  body.querySelectorAll('.recherche-cat-tile').forEach(tile=>{
-    tile.addEventListener('click', ()=>{
-      const filter = tile.dataset.filter;
-      document.querySelectorAll('.chip[data-filter]').forEach(c=>c.classList.toggle('active', c.dataset.filter===filter));
-      LAST_CAT_FILTER = filter;
-      LAST_CAT_QUERY = '';
-      document.getElementById('searchInput').value = '';
-      renderGrid(filter, '');
-      switchView('catalogue');
-      pushNav('catalogue', null);
-      window.scrollTo({top:0, behavior:'instant'});
-    });
-  });
-}
-
-function renderRechercheResults(q){
-  const body = document.getElementById('rechercheBody');
-  if(!body) return;
-  const query = (q||'').toLowerCase().trim();
-  if(!query){ renderRechercheDiscovery(); return; }
-  const items = sortItems(ALL_OBJETS.filter(o=>
-    `${o.titre} ${o.region||''} ${o.fabricant||''} ${o.departement||''}`.toLowerCase().includes(query)
-  ), CURRENT_SORT);
-  body.innerHTML = `
-    <div class="recherche-results-count">${items.length} résultat${items.length>1?'s':''} pour « ${esc(q)} »</div>
-    <div class="grid">${items.map(cardHtml).join('') || '<div class="state-msg">Aucun objet ne correspond à cette recherche.</div>'}</div>
-  `;
-  body.querySelectorAll('.fiche-mini').forEach(wireGridItem);
-  hydrateCachedImages(body);
-}
-
-let RECHERCHE_INPUT_WIRED = false;
-let rechercheSearchTimer = null;
-function openRechercheView(){
-  const input = document.getElementById('rechercheInput');
-  if(!RECHERCHE_INPUT_WIRED && input){
-    RECHERCHE_INPUT_WIRED = true;
-    input.addEventListener('input', ()=>{
-      clearTimeout(rechercheSearchTimer);
-      rechercheSearchTimer = setTimeout(()=> renderRechercheResults(input.value), 180);
-    });
-    input.addEventListener('keydown', e=>{
-      if(e.key === 'Enter' && input.value.trim()) saveRecentSearch(input.value);
-    });
-  }
-  if(input && input.value.trim()) renderRechercheResults(input.value);
-  else renderRechercheDiscovery();
-}
-
 // Bloc "Provenance des objets" (privé) — réutilise renderBarBlock.
 // Bloc "Provenance des objets" (privé) : nombre d'objets ET total investi par provenance.
 function renderProvenance(){
@@ -2887,10 +2495,7 @@ let catalogueObserver = null;
 function cardHtml(o){
   return `
     <a class="fiche-mini" href="?obj=${o.uid}" data-uid="${o.uid}">
-      <div class="thumb-cover">
-        ${thumbListHtml(o)}
-        ${o.indice_rarete ? `<span class="rare-badge">${esc(o.indice_rarete)}</span>` : ''}
-      </div>
+      <div class="thumb-pair">${thumbHtml(o,'Recto')}${thumbHtml(o,'Verso')}</div>
       <div class="body">
         <div class="id">${esc(o.id_public)}</div>
         <div class="titre">${esc(o.titre)}</div>
@@ -3122,7 +2727,7 @@ function renderFichePrivateBento(o){
   const maxVal = Math.max(1, prix, valeur);
 
   return `
-    <div class="panel montants-panel locked-panel fiche-priv" style="margin-top:20px;">
+    <div class="panel montants-panel locked-panel" style="margin-top:20px;">
       <h3>🔒 Informations privées</h3>
       <div class="mont-bento">
         <div class="mont-hero">
@@ -3179,52 +2784,36 @@ function showFiche(uid){
   if(!o) return;
   CURRENT_FICHE_UID = uid;
   const c = document.getElementById('ficheContent');
-  const rareteCode = o.indice_rarete || '';
-  const rareteLabel = RARETE_DESC[rareteCode] || rareteCode;
   c.innerHTML = `
     <div class="card">
       <div class="card-top">
         <div>
           <div class="id">${esc(o.id_public)}</div>
           <h2>${esc(o.titre)}</h2>
-          <div class="sec">${esc([o.region, o.departement].filter(Boolean).join(' · '))}</div>
+          <div class="sec">${esc(o.region) || ''}</div>
         </div>
         <div class="header-actions">
           <div class="rarity-pill"><span class="dots dots-lg">${dotsHtml(raretePos(o.indice_rarete))}</span></div>
           ${IS_ADMIN ? '<button class="btn btn-secondary" id="editObjetBtn">Modifier</button>' : ''}
         </div>
       </div>
-      <!-- Pastilles d'état — reprennent rareté/état/authenticité déjà dans les
-           champs ci-dessous, mais visibles d'un coup d'œil sans dérouler les
-           sections (refonte mobile v6, voir écran "fiche" de la maquette). -->
-      <div class="badge-row">
-        ${rareteCode ? `<span class="stat-badge accentb" title="Indice de rareté">${esc(rareteCode)} · ${esc(rareteLabel)}</span>` : ''}
-        ${o.etat_conservation ? `<span class="stat-badge">${esc(o.etat_conservation)}</span>` : ''}
-        ${o.authenticite ? `<span class="stat-badge">${esc(o.authenticite)}</span>` : ''}
-      </div>
-      <div id="galleryWrap" style="margin:16px 26px 0;"></div>
-      <div class="card-fields field-groups">
-        <details class="field-acc" open>
-          <summary><span>Identification</span><svg class="acc-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></summary>
-          <div class="acc-body field-grid">
-            <div class="field-row"><div class="k">Mouvement</div><div class="v">${esc(o.mouvement) || '—'}</div></div>
-            <div class="field-row"><div class="k">Détails</div><div class="v">${esc(o.details) || '—'}</div></div>
-            <div class="field-row"><div class="k">Taille</div><div class="v mono">${esc(o.taille) || '—'}</div></div>
-            <div class="field-row"><div class="k">Fabricant</div><div class="v">${esc(o.fabricant) || '—'}</div></div>
-            <div class="field-row"><div class="k">Détail tirage</div><div class="v">${esc(o.detail_tirage) || '—'}</div></div>
-            <div class="field-row"><div class="k">Date de fabrication</div><div class="v mono">${o.date_fabrication ? new Date(o.date_fabrication).toLocaleDateString('fr-FR') : '—'}</div></div>
-            <div class="field-row"><div class="k">Type de variante</div><div class="v">${esc(o.type_variante) || '—'}</div></div>
-            <div class="field-row"><div class="k">Authenticité</div><div class="v">${esc(o.authenticite) || '—'}</div></div>
-            <div class="field-row"><div class="k">État de conservation</div><div class="v">${esc(o.etat_conservation) || '—'}</div></div>
-          </div>
-        </details>
-        <details class="field-acc">
-          <summary><span>Notes &amp; historique</span><svg class="acc-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></summary>
-          <div class="acc-body field-grid">
-            <div class="field-row full"><div class="k">Notes</div><div class="v rich-text">${formatRichText(o.notes)}</div></div>
-            <div class="field-row full"><div class="k">Infos / historique</div><div class="v rich-text">${formatRichText(o.infos)}</div></div>
-          </div>
-        </details>
+      <div id="galleryWrap" style="margin:20px 26px 0;"></div>
+      <div class="card-fields">
+        <div class="field-grid">
+          <div class="field-row"><div class="k">Région</div><div class="v">${esc(o.region) || '—'}</div></div>
+          <div class="field-row"><div class="k">Département</div><div class="v">${esc(o.departement) || '—'}</div></div>
+          <div class="field-row"><div class="k">Mouvement</div><div class="v">${esc(o.mouvement) || '—'}</div></div>
+          <div class="field-row"><div class="k">Détails</div><div class="v">${esc(o.details) || '—'}</div></div>
+          <div class="field-row"><div class="k">Taille</div><div class="v mono">${esc(o.taille) || '—'}</div></div>
+          <div class="field-row"><div class="k">Fabricant</div><div class="v">${esc(o.fabricant) || '—'}</div></div>
+          <div class="field-row"><div class="k">Détail tirage</div><div class="v">${esc(o.detail_tirage) || '—'}</div></div>
+          <div class="field-row"><div class="k">Date de fabrication</div><div class="v mono">${o.date_fabrication ? new Date(o.date_fabrication).toLocaleDateString('fr-FR') : '—'}</div></div>
+          <div class="field-row"><div class="k">Type de variante</div><div class="v">${esc(o.type_variante) || '—'}</div></div>
+          <div class="field-row"><div class="k">Authenticité</div><div class="v">${esc(o.authenticite) || '—'}</div></div>
+          <div class="field-row"><div class="k">État de conservation</div><div class="v">${esc(o.etat_conservation) || '—'}</div></div>
+          <div class="field-row full"><div class="k">Notes</div><div class="v rich-text">${formatRichText(o.notes)}</div></div>
+          <div class="field-row full"><div class="k">Infos / historique</div><div class="v rich-text">${formatRichText(o.infos)}</div></div>
+        </div>
       </div>
       <div id="objMiniMap" class="obj-mini-map"></div>
     </div>
@@ -3787,7 +3376,6 @@ document.getElementById('tabs').addEventListener('click', e=>{
   switchView(view);
   pushNav(view, null);
   if(view==='dashboard' && franceMap) setTimeout(()=> franceMap.invalidateSize(), 50);
-  if(view==='recherche') openRechercheView();
 });
 window.addEventListener('resize', ()=>{
   if(franceMap) franceMap.invalidateSize();
@@ -3901,12 +3489,6 @@ document.getElementById('advSearchToggle').addEventListener('click', ()=>{
   btn.classList.add('active');
   window.scrollTo({top: 0, behavior: 'instant'});
 });
-// Ferme la feuille de filtres (mobile) au clic sur la trame assombrie derrière —
-// même fermeture que le bouton "Recherche combinée" lui-même, voir ci-dessus.
-document.getElementById('advSearchScrim').addEventListener('click', ()=>{
-  document.getElementById('advSearchPanel').style.display = 'none';
-  document.getElementById('advSearchToggle').classList.remove('active');
-});
 document.querySelectorAll('.adv-chip').forEach(chip=>{
   chip.addEventListener('click', ()=>{
     const group = chip.parentElement.dataset.group; // advRarete, advEtat ou advMouvement
@@ -3946,28 +3528,23 @@ try{
   // alors sur le tableau de bord au lieu de la fiche visée.
   const initParams = new URLSearchParams(window.location.search);
   const initObj = initParams.get('obj');
-  // v2 : l'écran de démarrage est "Accueil" (id interne "catalogue"), plus le
-  // tableau de bord ("dashboard", devenu l'onglet "Profil") — seul ce
-  // fallback par défaut change, pas la comparaison ===‘dashboard' plus bas
-  // qui sert à réajuster la carte de France quand on affiche Profil.
-  history.replaceState({view: initObj ? 'fiche' : 'catalogue', uid: initObj || null}, '', window.location.href);
+  history.replaceState({view: initObj ? 'fiche' : 'dashboard', uid: initObj || null}, '', window.location.href);
 }catch(err){
   // Contexte restreint (ex: aperçu en iframe) — sans impact sur le reste de l'appli.
 }
 
 window.addEventListener('popstate', (e)=>{
-  const state = e.state || {view:'catalogue', uid:null};
+  const state = e.state || {view:'dashboard', uid:null};
   if(state.view==='fiche' && state.uid){
     showFiche(state.uid);
   } else {
-    switchView(state.view || 'catalogue');
+    switchView(state.view || 'dashboard');
     if(state.view==='catalogue'){
       document.querySelectorAll('.chip[data-filter]').forEach(c=>c.classList.toggle('active', c.dataset.filter===LAST_CAT_FILTER));
       document.getElementById('searchInput').value = LAST_CAT_QUERY;
       renderGrid(LAST_CAT_FILTER, LAST_CAT_QUERY);
     }
-    if((state.view||'catalogue')==='dashboard' && franceMap) setTimeout(()=> franceMap.invalidateSize(), 50);
-    if(state.view==='recherche') openRechercheView();
+    if((state.view||'dashboard')==='dashboard' && franceMap) setTimeout(()=> franceMap.invalidateSize(), 50);
   }
 });
 
@@ -5219,39 +4796,6 @@ refreshAuthState().then(()=> loadAll()).then(()=> initFranceMap());
 })();
 
 // ============================================================
-// v2 "Profil" — en-tête identité + accès rapides (#profilSettingsBtn /
-// #profilLoginBtn dans #view-dashboard). Même principe de proxy que le pied
-// de menu desktop juste au-dessus : ces boutons ne font que déclencher un
-// clic réel sur #mobileSettingsBtn / #loginBtn puis refléter l'état résultant
-// (IS_ADMIN), aucune logique métier dupliquée.
-// ============================================================
-(function(){
-  const profilSettingsBtn = document.getElementById('profilSettingsBtn');
-  const mobileSettingsBtn = document.getElementById('mobileSettingsBtn');
-  if(profilSettingsBtn && mobileSettingsBtn){
-    profilSettingsBtn.addEventListener('click', ()=> mobileSettingsBtn.click());
-  }
-
-  const profilLoginBtn = document.getElementById('profilLoginBtn');
-  const profilLoginBtnLabel = document.getElementById('profilLoginBtnLabel');
-  const profilStatusText = document.getElementById('profilStatusText');
-  const profilStatusDot = document.getElementById('profilStatusDot');
-  const loginBtn = document.getElementById('loginBtn');
-  const loginBtnLabel = document.getElementById('loginBtnLabel');
-  if(profilLoginBtn && loginBtn){
-    profilLoginBtn.addEventListener('click', ()=> loginBtn.click());
-    function syncProfilLoginState(){
-      const admin = typeof IS_ADMIN !== 'undefined' && IS_ADMIN;
-      if(profilLoginBtnLabel) profilLoginBtnLabel.textContent = admin ? 'Se déconnecter' : 'Connexion administrateur';
-      if(profilStatusText) profilStatusText.textContent = admin ? 'Administrateur' : 'Invité';
-      if(profilStatusDot) profilStatusDot.classList.toggle('online', admin);
-    }
-    syncProfilLoginState();
-    if(loginBtnLabel) new MutationObserver(syncProfilLoginState).observe(loginBtnLabel, { childList:true, characterData:true, subtree:true });
-  }
-})();
-
-// ============================================================
 // Galerie — grille des objets (une photo par objet, recto en priorité),
 // inspirée de la grille de profil Instagram (tuiles carrées, même taille,
 // pas d'effet bento). Ordre STABLE par défaut (celui de la collection) ;
@@ -5571,10 +5115,7 @@ function wishCardHtml(w){
   const secLine = wishSecLine(w);
   return `
     <div class="fiche-mini wish-mini" data-wish-id="${esc(w.id)}">
-      <div class="thumb-cover">
-        ${wishThumbListHtml(w)}
-        ${w.indice_rarete ? `<span class="rare-badge">${esc(w.indice_rarete)}</span>` : ''}
-      </div>
+      <div class="thumb-pair">${wishThumbTile(w.id,'Recto')}${wishThumbTile(w.id,'Verso')}</div>
       <div class="body">
         <div class="titre">${esc(w.titre)}</div>
         ${secLine ? `<div class="sec">${esc(secLine)}</div>` : ''}
