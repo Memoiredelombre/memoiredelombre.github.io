@@ -786,7 +786,12 @@
   .adv-chip-row{display:flex; flex-wrap:wrap; gap:6px;}
   .adv-chip{height:30px; font-size:11.5px; padding:0 12px;}
   .adv-field{display:flex; flex-direction:column; gap:6px;}
-  .adv-field label{font-size:10.5px; color:var(--ink-soft); font-weight:600; text-transform:uppercase; letter-spacing:.04em;}
+  /* .adv-field-label : ce ne sont pas des <label> de champ de formulaire
+     (les "champs" sont des groupes de chips cliquables, pas un input/select
+     unique) — un <label for="..."> n'aurait rien à cibler. On garde le même
+     rendu visuel via une classe, et l'association pour les lecteurs d'écran
+     se fait par aria-labelledby sur le groupe de chips (voir plus bas). */
+  .adv-field-label{font-size:10.5px; color:var(--ink-soft); font-weight:600; text-transform:uppercase; letter-spacing:.04em;}
   @media(max-width:600px){.adv-search-panel{flex-direction:column; align-items:stretch; gap:12px;}}
 
   /* Select natif (même id, même événement "change" côté JS) — desktop : forme
@@ -1145,8 +1150,8 @@ try{
           <div class="login-page-form">
             <h3>Connexion administrateur</h3>
             <p class="login-page-sub">Accédez à la gestion complète de la collection.</p>
-            <div class="form-field"><label>Email</label><input type="email" id="loginEmail"></div>
-            <div class="form-field"><label>Mot de passe</label><input type="password" id="loginPassword"></div>
+            <div class="form-field"><label for="loginEmail">Email</label><input type="email" id="loginEmail"></div>
+            <div class="form-field"><label for="loginPassword">Mot de passe</label><input type="password" id="loginPassword"></div>
             <div class="modal-actions login-page-actions">
               <!-- #loginMsg regroupé avec #loginSubmitBtn dans .login-submit-row :
                    les deux forment un seul bloc qui ne se met jamais à la ligne,
@@ -1183,8 +1188,8 @@ try{
             <button class="btn btn-secondary" id="settingsPasswordToggleBtn" type="button">Modifier</button>
           </div>
           <div class="settings-password-form" id="settingsPasswordForm" style="display:none;">
-            <div class="form-field"><label>Nouveau mot de passe</label><input type="password" id="settingsNewPassword" autocomplete="new-password"></div>
-            <div class="form-field"><label>Confirmer le mot de passe</label><input type="password" id="settingsConfirmPassword" autocomplete="new-password"></div>
+            <div class="form-field"><label for="settingsNewPassword">Nouveau mot de passe</label><input type="password" id="settingsNewPassword" autocomplete="new-password"></div>
+            <div class="form-field"><label for="settingsConfirmPassword">Confirmer le mot de passe</label><input type="password" id="settingsConfirmPassword" autocomplete="new-password"></div>
             <div class="settings-password-actions">
               <button class="btn btn-secondary" id="settingsPasswordCancelBtn" type="button">Annuler</button>
               <button class="btn btn-primary" id="settingsPasswordSaveBtn" type="button">Enregistrer</button>
@@ -1426,8 +1431,8 @@ try{
 
         <div id="advSearchPanel" class="adv-search-panel" style="display:none;">
           <div class="adv-field">
-            <label>Rareté</label>
-            <div class="adv-chip-row" data-group="advRarete">
+            <span class="adv-field-label" id="advRareteLabel">Rareté</span>
+            <div class="adv-chip-row" data-group="advRarete" role="group" aria-labelledby="advRareteLabel">
               <span class="chip adv-chip" data-value="X">X</span>
               <span class="chip adv-chip" data-value="XX">XX</span>
               <span class="chip adv-chip" data-value="XXX">XXX</span>
@@ -1436,8 +1441,8 @@ try{
             </div>
           </div>
           <div class="adv-field">
-            <label>État de conservation</label>
-            <div class="adv-chip-row" data-group="advEtat">
+            <span class="adv-field-label" id="advEtatLabel">État de conservation</span>
+            <div class="adv-chip-row" data-group="advEtat" role="group" aria-labelledby="advEtatLabel">
               <span class="chip adv-chip" data-value="Neuf">Neuf</span>
               <span class="chip adv-chip" data-value="Très bon état">Très bon état</span>
               <span class="chip adv-chip" data-value="Bon état">Bon état</span>
@@ -1448,8 +1453,8 @@ try{
             </div>
           </div>
           <div class="adv-field">
-            <label>Mouvement</label>
-            <div class="adv-chip-row" data-group="advMouvement">
+            <span class="adv-field-label" id="advMouvementLabel">Mouvement</span>
+            <div class="adv-chip-row" data-group="advMouvement" role="group" aria-labelledby="advMouvementLabel">
               <span class="chip adv-chip" data-value="Organisations Régionales - NORD">Nord</span>
               <span class="chip adv-chip" data-value="Organisations Régionales - SUD">Sud</span>
               <span class="chip adv-chip" data-value="Grandes organisations">Organisations</span>
@@ -1457,8 +1462,8 @@ try{
             </div>
           </div>
           <div class="adv-field">
-            <label>Authenticité</label>
-            <div class="adv-chip-row" data-group="advAuthenticite">
+            <span class="adv-field-label" id="advAuthenticiteLabel">Authenticité</span>
+            <div class="adv-chip-row" data-group="advAuthenticite" role="group" aria-labelledby="advAuthenticiteLabel">
               <span class="chip adv-chip" data-value="Authentique">Authentique</span>
               <span class="chip adv-chip" data-value="Copie / Reproduction">Copie</span>
               <span class="chip adv-chip" data-value="Refrappe">Refrappe</span>
@@ -1467,7 +1472,7 @@ try{
             </div>
           </div>
           <div class="adv-field" style="margin-left:auto;">
-            <label style="visibility:hidden;">Réinitialiser</label>
+            <span class="adv-field-label" style="visibility:hidden;">Réinitialiser</span>
             <button class="chip adv-reset-btn" id="advSearchReset" type="button">Réinitialiser</button>
           </div>
         </div>
@@ -1719,6 +1724,28 @@ function scalewayPublicUrl(path){
   return `https://${SCALEWAY_BUCKET}.s3.${SCALEWAY_REGION}.scw.cloud/${path}`;
 }
 
+// Dérive le chemin de la VIGNETTE basse résolution à partir du chemin de la
+// photo pleine taille : même chemin, avec le suffixe "_thumb" juste avant
+// l'extension (ex: "uid/recto-172.webp" -> "uid/recto-172_thumb.webp").
+// Les deux fichiers sont envoyés côte à côte lors de l'upload (voir
+// compressToWebp/uploadToScaleway plus bas) : aucune colonne supplémentaire
+// nécessaire en base, le chemin de la vignette se calcule toujours à partir
+// de "storage_path".
+function thumbPathFor(path){
+  const idx = path.lastIndexOf('.');
+  if(idx === -1) return path + '_thumb';
+  return path.slice(0, idx) + '_thumb' + path.slice(idx);
+}
+
+// URL publique de la vignette basse résolution. À utiliser partout où la
+// photo n'est affichée qu'en petit (cartes du catalogue/souhaits, listes,
+// mosaïque de la galerie, dashboard) — scalewayPublicUrl() reste réservée à
+// la fiche détaillée et à la visionneuse plein écran, qui ont besoin de la
+// pleine résolution.
+function scalewayThumbUrl(path){
+  return scalewayPublicUrl(thumbPathFor(path));
+}
+
 // Convertit un blob (photo compressée) en base64, pour l'envoi à la fonction serverless.
 function blobToBase64(blob){
   return new Promise((resolve, reject)=>{
@@ -1861,14 +1888,29 @@ function hydrateCachedImages(container, nodes){
   }
   imgs.forEach(img=>{
     const url = img.dataset.src;
+    const fallback = img.dataset.fallback;
+    // Bascule automatique vers la version pleine taille si la vignette est
+    // introuvable (photo envoyée avant l'introduction des vignettes séparées,
+    // ou vignette manquante pour toute autre raison) : sans ce filet, ces
+    // photos plus anciennes s'afficheraient cassées tant qu'elles ne sont pas
+    // réenvoyées. Le fallback ne se déclenche qu'une fois par image.
+    if(fallback){
+      img.addEventListener('error', function onThumbError(){
+        img.removeEventListener('error', onThumbError);
+        getCachedBlobUrl(fallback).then(blobUrl => { img.src = blobUrl; });
+      }, { once:true });
+    }
     getCachedBlobUrl(url).then(blobUrl => { img.src = blobUrl; });
   });
 }
 
 // Balise <img> avec mise en cache navigateur (via Cache API) pour éviter de
 // retélécharger une photo déjà vue. Sans effet en local (file://), actif une fois hébergé.
-function cachedImgTag(url, extraAttrs){
-  return `<img class="cached-img" data-src="${url}" ${extraAttrs||''} loading="lazy" decoding="async">`;
+// fallbackUrl (optionnel) : URL pleine taille à charger si "url" (typiquement
+// une vignette) échoue — voir hydrateCachedImages().
+function cachedImgTag(url, extraAttrs, fallbackUrl){
+  const fb = fallbackUrl ? ` data-fallback="${fallbackUrl}"` : '';
+  return `<img class="cached-img" data-src="${url}"${fb} ${extraAttrs||''} loading="lazy" decoding="async">`;
 }
 
 // ---------- Compression + conversion WebP à l'envoi ----------
@@ -1903,6 +1945,79 @@ async function compressToWebp(file, maxDim, quality){
     };
     reader.onerror = () => resolve({ blob:file, ext:(file.name.split('.').pop()||'jpg').toLowerCase(), contentType:file.type||'image/jpeg' });
     reader.readAsDataURL(file);
+  });
+}
+
+// Dimensions/qualité de la vignette basse résolution (voir thumbPathFor et
+// scalewayThumbUrl plus haut) : largement suffisant pour les cartes et
+// listes où elle est affichée (quelques dizaines à ~150px), beaucoup plus
+// léger que l'image pleine taille (1600px) qui servait jusqu'ici à tout,
+// y compris ces petites vignettes.
+const THUMB_MAX_DIM = 480;
+const THUMB_QUALITY = 0.72;
+
+// Compresse une photo en DEUX versions (pleine taille + vignette basse
+// résolution) et envoie les deux sur Scaleway, au même chemin de base —
+// voir compressToWebp() ci-dessus et thumbPathFor()/scalewayThumbUrl() plus
+// haut dans le fichier. Utilisée par tous les points d'envoi de photo
+// (objet ET souhait) pour ne pas dupliquer cette logique à 4 endroits.
+// "pathPrefix" est le chemin SANS extension (ex: "uid/recto-172") :
+// l'extension dépend du résultat de la compression (normalement "webp",
+// sauf navigateur incapable d'encoder en webp, auquel cas on garde le
+// fichier d'origine — voir compressToWebp) et ne peut donc être connue
+// qu'après coup. Retourne { path, ext } (le chemin complet réellement
+// utilisé, à enregistrer en base) ; lève une erreur (avec .detail si
+// disponible) si l'un des deux envois échoue.
+async function compressAndUploadPhoto(file, pathPrefix){
+  const [full, thumb] = await Promise.all([
+    compressToWebp(file),
+    compressToWebp(file, THUMB_MAX_DIM, THUMB_QUALITY),
+  ]);
+  const path = `${pathPrefix}.${full.ext}`;
+  await uploadToScaleway(path, full.blob, full.contentType);
+  await uploadToScaleway(thumbPathFor(path), thumb.blob, thumb.contentType);
+  return { path, ext: full.ext };
+}
+
+// Supprime la photo pleine taille ET sa vignette sur Scaleway. La
+// suppression de la vignette est best-effort (photo envoyée avant
+// l'existence des vignettes séparées, ou vignette déjà absente pour toute
+// autre raison) : son échec ne doit jamais empêcher de supprimer la photo
+// elle-même.
+async function deletePhotoWithThumb(storagePath){
+  await deleteFromScaleway(storagePath);
+  try{ await deleteFromScaleway(thumbPathFor(storagePath)); }catch(err){ /* non bloquant */ }
+}
+
+// Génère une vignette webp à partir d'un blob déjà en mémoire (pas d'objet
+// File issu d'un <input>, donc pas de nom de fichier disponible — compressToWebp
+// ci-dessus s'appuie sur file.name dans son repli, inutilisable ici).
+// Utilisée par transferWishPhotosToObjet() pour fabriquer la vignette de la
+// photo pleine taille déjà téléchargée lors de la conversion d'un souhait en
+// objet ("Trouvé"), sans redemander le fichier à l'utilisateur.
+function generateThumbBlob(sourceBlob, maxDim, quality){
+  return new Promise((resolve)=>{
+    const url = URL.createObjectURL(sourceBlob);
+    const img = new Image();
+    const cleanup = () => URL.revokeObjectURL(url);
+    img.onload = () => {
+      let { width, height } = img;
+      if(width > maxDim || height > maxDim){
+        const scale = maxDim / Math.max(width, height);
+        width = Math.round(width*scale);
+        height = Math.round(height*scale);
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width; canvas.height = height;
+      canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+      canvas.toBlob(blob=>{
+        cleanup();
+        if(blob && blob.type === 'image/webp') resolve({ blob, contentType:'image/webp' });
+        else resolve({ blob: sourceBlob, contentType: sourceBlob.type || 'image/webp' });
+      }, 'image/webp', quality);
+    };
+    img.onerror = () => { cleanup(); resolve({ blob: sourceBlob, contentType: sourceBlob.type || 'image/webp' }); };
+    img.src = url;
   });
 }
 
@@ -2356,7 +2471,7 @@ function renderDerniersAjoutes(){
     const recto = shots.find(s=>s.label==='Recto') || shots[0];
     let thumb = IMG_ICON;
     if(recto){
-      thumb = cachedImgTag(scalewayPublicUrl(recto.storage_path), 'alt=""');
+      thumb = cachedImgTag(scalewayThumbUrl(recto.storage_path), 'alt=""', scalewayPublicUrl(recto.storage_path));
     }
     return `
       <a class="derniers-row" href="?obj=${o.uid}" data-uid="${o.uid}">
@@ -2480,7 +2595,7 @@ function thumbHtml(objet, label){
   const shots = PHOTOS_BY_OBJET[objet.uid] || [];
   const match = shots.find(s=>s.label===label);
   if(match){
-    return `<div class="thumb">${cachedImgTag(scalewayPublicUrl(match.storage_path), `alt="${label}"`)}</div>`;
+    return `<div class="thumb">${cachedImgTag(scalewayThumbUrl(match.storage_path), `alt="${label}"`, scalewayPublicUrl(match.storage_path))}</div>`;
   }
   return `<div class="thumb">${IMG_ICON}${label}</div>`;
 }
@@ -2490,7 +2605,7 @@ function thumbListHtml(objet){
   const shots = PHOTOS_BY_OBJET[objet.uid] || [];
   const match = shots.find(s=>s.label==='Recto') || shots[0];
   if(match){
-    return cachedImgTag(scalewayPublicUrl(match.storage_path), 'alt=""');
+    return cachedImgTag(scalewayThumbUrl(match.storage_path), 'alt=""', scalewayPublicUrl(match.storage_path));
   }
   return IMG_ICON;
 }
@@ -2999,10 +3114,10 @@ function renderPhotoGallery(uid){
   };
 
   const extraTiles = autres.map(p=>{
-    const url = scalewayPublicUrl(p.storage_path);
+    const url = scalewayThumbUrl(p.storage_path);
     return `
       <div class="photo-tile small">
-        ${cachedImgTag(url, `alt="Photo" onclick="openLightboxFor('${uid}','${p.id}')"`)}
+        ${cachedImgTag(url, `alt="Photo" onclick="openLightboxFor('${uid}','${p.id}')"`, scalewayPublicUrl(p.storage_path))}
         ${IS_ADMIN ? `<button class="del-btn" title="Supprimer" onclick="handleDeletePhoto('${p.id}','${p.storage_path}','${uid}')">×</button>` : ''}
       </div>
     `;
@@ -3102,7 +3217,7 @@ document.addEventListener('keydown', e=>{
 
 async function handleDeletePhoto(photoId, storagePath, uid){
   if(!await askGenericConfirm('Supprimer cette photo ?', 'Supprimer')) return;
-  try{ await deleteFromScaleway(storagePath); }catch(err){ showToast("Erreur de suppression : " + (err.detail || err.message), 'error'); return; }
+  try{ await deletePhotoWithThumb(storagePath); }catch(err){ showToast("Erreur de suppression : " + (err.detail || err.message), 'error'); return; }
   await sb.from('photos').delete().eq('id', photoId);
   await refreshPhotosCache();
   renderPhotoGallery(uid);
@@ -3117,9 +3232,8 @@ async function handleAddExtraPhoto(event, uid){
   UPLOAD_IN_PROGRESS = true;
   event.target.disabled = true;
   try{
-    const { blob, ext, contentType } = await compressToWebp(file);
-    const path = `${uid}/autre-${Date.now()}.${ext}`;
-    try{ await uploadToScaleway(path, blob, contentType); }catch(err){ showToast("Erreur d'envoi : " + (err.detail || err.message), 'error'); return; }
+    let path;
+    try{ ({ path } = await compressAndUploadPhoto(file, `${uid}/autre-${Date.now()}`)); }catch(err){ showToast("Erreur d'envoi : " + (err.detail || err.message), 'error'); return; }
     const existing = (PHOTOS_BY_OBJET[uid]||[]).filter(s=>s.label==='Autre');
     const nextPos = existing.length ? Math.max(...existing.map(s=>s.position||0)) + 1 : 1;
     const { error: insErr } = await sb.from('photos').insert({ objet_uid: uid, storage_path: path, label: 'Autre', position: nextPos });
@@ -3133,7 +3247,10 @@ async function handleAddExtraPhoto(event, uid){
 
 async function refreshPhotosCache(){
   const { data: photos, error } = await sb.from('photos').select('*');
-  if(error){ console.error('Erreur chargement photos:', error); }
+  if(error){
+    console.error('Erreur chargement photos:', error);
+    if(typeof showToast === 'function') showToast('Les photos n\'ont pas pu être rechargées : ' + error.message, 'error');
+  }
   PHOTOS_BY_OBJET = {};
   (photos||[]).forEach(p=>{
     PHOTOS_BY_OBJET[p.objet_uid] = PHOTOS_BY_OBJET[p.objet_uid] || [];
@@ -3148,11 +3265,9 @@ async function handleUploadChange(event, uid, label, photoId){
   UPLOAD_IN_PROGRESS = true;
 
   try{
-    const { blob, ext, contentType } = await compressToWebp(file);
-    const path = `${uid}/${label.toLowerCase()}-${Date.now()}.${ext}`;
-
+    let path;
     try{
-      await uploadToScaleway(path, blob, contentType);
+      ({ path } = await compressAndUploadPhoto(file, `${uid}/${label.toLowerCase()}-${Date.now()}`));
     }catch(err){
       showToast("Erreur d'envoi de la photo : " + (err.detail || err.message), 'error');
       return;
@@ -3208,7 +3323,7 @@ function fieldHtml(col, label, type, val, opts, prefix){
   prefix = prefix || 'f_';
   const v = (val===undefined || val===null) ? '' : val;
   if(type==='select'){
-    return `<div class="form-field"><label>${esc(label)}</label>
+    return `<div class="form-field"><label for="${prefix}${col}">${esc(label)}</label>
       <select id="${prefix}${col}">${opts.map(o=>`<option value="${esc(o)}" ${o===v?'selected':''}>${esc(o)||'—'}</option>`).join('')}</select>
     </div>`;
   }
@@ -3216,9 +3331,9 @@ function fieldHtml(col, label, type, val, opts, prefix){
     const hint = (col==='infos' || col==='notes')
       ? '<div class="field-hint">Astuce : **gras**, *italique*, un retour à la ligne suffit, et les liens (http://...) deviennent cliquables automatiquement.</div>'
       : '';
-    return `<div class="form-field full"><label>${esc(label)}</label><textarea id="${prefix}${col}">${esc(v)}</textarea>${hint}</div>`;
+    return `<div class="form-field full"><label for="${prefix}${col}">${esc(label)}</label><textarea id="${prefix}${col}">${esc(v)}</textarea>${hint}</div>`;
   }
-  return `<div class="form-field"><label>${esc(label)}</label><input id="${prefix}${col}" type="${type}" value="${esc(v)}"></div>`;
+  return `<div class="form-field"><label for="${prefix}${col}">${esc(label)}</label><input id="${prefix}${col}" type="${type}" value="${esc(v)}"></div>`;
 }
 
 // Souhaits : même rendu que fieldHtml() ci-dessus mais préfixe "wf_" plutôt
@@ -4152,7 +4267,8 @@ refreshAuthState().then(()=> loadAll()).then(()=> initFranceMap());
     const recto = shots.find(s => s.label === 'Recto') || shots[0];
     let thumb = (typeof IMG_ICON !== 'undefined') ? IMG_ICON : '';
     if(recto && typeof cachedImgTag === 'function' && typeof scalewayPublicUrl === 'function'){
-      thumb = cachedImgTag(scalewayPublicUrl(recto.storage_path), 'alt=""');
+      const thumbUrl = (typeof scalewayThumbUrl === 'function') ? scalewayThumbUrl(recto.storage_path) : scalewayPublicUrl(recto.storage_path);
+      thumb = cachedImgTag(thumbUrl, 'alt=""', scalewayPublicUrl(recto.storage_path));
     }
 
     const sign = delta >= 0 ? '+' : '';
@@ -4914,7 +5030,7 @@ refreshAuthState().then(()=> loadAll()).then(()=> initFranceMap());
       const shots = (typeof PHOTOS_BY_OBJET !== 'undefined' && PHOTOS_BY_OBJET[o.uid]) || [];
       if(!shots.length) return;
       const main = shots.find(p => p.label === 'Recto') || shots[0];
-      entries.push({ uid: o.uid, photoId: main.id, titre: o.titre, url: scalewayPublicUrl(main.storage_path) });
+      entries.push({ uid: o.uid, photoId: main.id, titre: o.titre, url: scalewayThumbUrl(main.storage_path), fallbackUrl: scalewayPublicUrl(main.storage_path) });
     });
     return entries;
   }
@@ -4926,7 +5042,7 @@ refreshAuthState().then(()=> loadAll()).then(()=> initFranceMap());
     }
     galleryGrid.innerHTML = entries.map(e => `
       <div class="ig-tile" data-uid="${e.uid}" data-photo-id="${e.photoId}">
-        ${cachedImgTag(e.url, `alt="${esc(e.titre)}"`)}
+        ${cachedImgTag(e.url, `alt="${esc(e.titre)}"`, e.fallbackUrl)}
         <div class="ig-tile-caption">${esc(e.titre)}</div>
       </div>
     `).join('');
@@ -5161,12 +5277,12 @@ function wishThumbTile(wishId, label){
   const shots = WISHLIST_PHOTOS_BY_ID[wishId] || [];
   const match = shots.find(s=>s.label===label);
   if(match){
-    const url = scalewayPublicUrl(match.storage_path);
+    const url = scalewayThumbUrl(match.storage_path);
     // Pas d'onclick ici (contrairement à la galerie de la fiche) : comme
     // thumbHtml() du catalogue, la vignette sur la carte du LISTING ne fait
     // qu'illustrer — cliquer dessus ouvre la fiche via la délégation de
     // wireWishlist(), pas la visionneuse en grand.
-    return `<div class="thumb">${cachedImgTag(url, `alt="${label}"`)}</div>`;
+    return `<div class="thumb">${cachedImgTag(url, `alt="${label}"`, scalewayPublicUrl(match.storage_path))}</div>`;
   }
   return `<div class="thumb">${IMG_ICON}${label}</div>`;
 }
@@ -5208,7 +5324,7 @@ function wishThumbListHtml(w){
   const shots = WISHLIST_PHOTOS_BY_ID[w.id] || [];
   const match = shots.find(s=>s.label==='Recto') || shots[0];
   if(match){
-    return cachedImgTag(scalewayPublicUrl(match.storage_path), 'alt=""');
+    return cachedImgTag(scalewayThumbUrl(match.storage_path), 'alt=""', scalewayPublicUrl(match.storage_path));
   }
   return IMG_ICON;
 }
@@ -5266,6 +5382,14 @@ async function transferWishPhotosToObjet(wishId, uid){
       const label = p.label || 'Autre';
       const path = `${uid}/${label.toLowerCase()}-${Date.now()}-${Math.random().toString(36).slice(2,7)}.${ext}`;
       await uploadToScaleway(path, blob, blob.type || 'image/webp');
+      // Vignette de la photo transférée : best-effort, comme
+      // deletePhotoWithThumb() ci-dessus — un échec ici ne doit pas faire
+      // échouer le transfert (la grille retombera simplement sur la pleine
+      // taille via le fallback de cachedImgTag jusqu'à un nouvel envoi).
+      try{
+        const thumb = await generateThumbBlob(blob, THUMB_MAX_DIM, THUMB_QUALITY);
+        await uploadToScaleway(thumbPathFor(path), thumb.blob, thumb.contentType);
+      }catch(thumbErr){ /* non bloquant */ }
       const position = label === 'Autre' ? ++autreCount : null;
       const { error: insErr } = await sb.from('photos').insert({ objet_uid: uid, storage_path: path, label, position });
       if(insErr) throw insErr;
@@ -5524,7 +5648,11 @@ let WISHLIST_PHOTOS_BY_ID = {};
 
 async function refreshWishPhotosCache(){
   const { data: photos, error } = await sb.from('wishlist_photos').select('*');
-  if(error){ console.error('Erreur chargement photos souhaits:', error); return; }
+  if(error){
+    console.error('Erreur chargement photos souhaits:', error);
+    if(typeof showToast === 'function') showToast('Les photos des souhaits n\'ont pas pu être rechargées : ' + error.message, 'error');
+    return;
+  }
   WISHLIST_PHOTOS_BY_ID = {};
   (photos||[]).forEach(p=>{
     WISHLIST_PHOTOS_BY_ID[p.wishlist_id] = WISHLIST_PHOTOS_BY_ID[p.wishlist_id] || [];
@@ -5586,10 +5714,10 @@ function renderWishPhotoGallery(wishId){
   };
 
   const extraTiles = autres.map(p=>{
-    const url = scalewayPublicUrl(p.storage_path);
+    const url = scalewayThumbUrl(p.storage_path);
     return `
       <div class="photo-tile small">
-        ${cachedImgTag(url, `alt="Photo" onclick="openWishLightboxFor('${wishId}','${p.id}')"`)}
+        ${cachedImgTag(url, `alt="Photo" onclick="openWishLightboxFor('${wishId}','${p.id}')"`, scalewayPublicUrl(p.storage_path))}
         <button class="del-btn" title="Supprimer" onclick="handleWishDeletePhoto('${p.id}','${p.storage_path}','${wishId}')">×</button>
       </div>
     `;
@@ -5614,7 +5742,7 @@ function renderWishPhotoGallery(wishId){
 
 async function handleWishDeletePhoto(photoId, storagePath, wishId){
   if(!await window.askGenericConfirm('Supprimer cette photo ?', 'Supprimer')) return;
-  try{ await deleteFromScaleway(storagePath); }catch(err){ showToast("Erreur de suppression : " + (err.detail || err.message), 'error'); return; }
+  try{ await deletePhotoWithThumb(storagePath); }catch(err){ showToast("Erreur de suppression : " + (err.detail || err.message), 'error'); return; }
   await sb.from('wishlist_photos').delete().eq('id', photoId);
   await refreshWishPhotosCache();
   renderWishPhotoGallery(wishId);
@@ -5628,9 +5756,8 @@ async function handleWishAddExtraPhoto(event, wishId){
   UPLOAD_IN_PROGRESS = true;
   event.target.disabled = true;
   try{
-    const { blob, ext, contentType } = await compressToWebp(file);
-    const path = `wishlist/${wishId}/autre-${Date.now()}.${ext}`;
-    try{ await uploadToScaleway(path, blob, contentType); }catch(err){ showToast("Erreur d'envoi : " + (err.detail || err.message), 'error'); return; }
+    let path;
+    try{ ({ path } = await compressAndUploadPhoto(file, `wishlist/${wishId}/autre-${Date.now()}`)); }catch(err){ showToast("Erreur d'envoi : " + (err.detail || err.message), 'error'); return; }
     const existing = (WISHLIST_PHOTOS_BY_ID[wishId]||[]).filter(s=>s.label==='Autre');
     const nextPos = existing.length ? Math.max(...existing.map(s=>s.position||0)) + 1 : 1;
     const { error: insErr } = await sb.from('wishlist_photos').insert({ wishlist_id: wishId, storage_path: path, label: 'Autre', position: nextPos });
@@ -5650,11 +5777,9 @@ async function handleWishUploadChange(event, wishId, label, photoId){
   UPLOAD_IN_PROGRESS = true;
 
   try{
-    const { blob, ext, contentType } = await compressToWebp(file);
-    const path = `wishlist/${wishId}/${label.toLowerCase()}-${Date.now()}.${ext}`;
-
+    let path;
     try{
-      await uploadToScaleway(path, blob, contentType);
+      ({ path } = await compressAndUploadPhoto(file, `wishlist/${wishId}/${label.toLowerCase()}-${Date.now()}`));
     }catch(err){
       showToast("Erreur d'envoi de la photo : " + (err.detail || err.message), 'error');
       return;
