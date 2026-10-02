@@ -1,7 +1,8 @@
 """
 Connexion admin et formulaire objet : identifiants valides/invalides,
 champs privés visibles une fois connecté, état de chargement du bouton
-Enregistrer, création d'un objet.
+Enregistrer, création d'un objet, et le select "Département" (liste fixe +
+saisie libre via "Autre").
 
 Lancer : python3 tests/test_admin.py
 Prérequis : python3 tests/build_preview.py (régénère tests/preview.html)
@@ -86,13 +87,47 @@ async def main():
         check("après l'enregistrement, on atterrit sur la fiche du nouvel objet", active_view == "view-fiche")
 
         # ---- Formulaire : édition d'un objet existant ----
-        await page.evaluate("() => openForm('edit', ALL_OBJETS[0])")
+        # (par uid plutôt que ALL_OBJETS[0] : la création d'un objet juste
+        # au-dessus, suivie d'un loadAll() trié par id_public, peut avoir
+        # fait passer l'objet nouvellement créé — sans id_public — en
+        # première position du tableau.)
+        edit_target_uid = await page.evaluate("() => ALL_OBJETS.find(o => o.uid === 'uid-000').uid")
+        await page.evaluate(
+            "(uid) => openForm('edit', ALL_OBJETS.find(o => o.uid === uid))",
+            edit_target_uid,
+        )
         await page.wait_for_timeout(300)
         save_btn_label_edit = await page.locator("#saveObjetBtn").inner_text()
         check(
             "le bouton du formulaire d'édition dit « Enregistrer les modifications »",
             "enregistrer" in save_btn_label_edit.lower(),
             save_btn_label_edit,
+        )
+
+        # ---- Département : select fixe + saisie libre via "Autre" ----
+        dept_hidden_initial = await page.locator("#f_departement").input_value()
+        check(
+            "le champ département caché reprend la valeur initiale de l'objet",
+            dept_hidden_initial == "35 Ille-et-Vilaine",
+            dept_hidden_initial,
+        )
+        await page.select_option("#f_departement_select", "__autre__")
+        await page.wait_for_timeout(100)
+        autre_visible = await page.locator("#f_departement_autre").is_visible()
+        check("choisir « Autre » révèle le champ de saisie libre", autre_visible)
+        await page.fill("#f_departement_autre", "Zone occupée (non précisée)")
+        dept_hidden_after_custom = await page.locator("#f_departement").input_value()
+        check(
+            "la saisie libre met à jour le département réellement enregistré",
+            dept_hidden_after_custom == "Zone occupée (non précisée)",
+            dept_hidden_after_custom,
+        )
+        await page.select_option("#f_departement_select", "29 Finistère")
+        dept_hidden_after_reselect = await page.locator("#f_departement").input_value()
+        check(
+            "revenir à une valeur fixe de la liste remet à jour le département enregistré",
+            dept_hidden_after_reselect == "29 Finistère",
+            dept_hidden_after_reselect,
         )
 
         # ---- Déconnexion : repasse en invité, champs privés masqués ----

@@ -22,16 +22,19 @@ Scaleway : un faux backend (`mock_stub.js`) est injecté dans une copie de
   informations privées pour un invité.
 - `test_admin.py` — connexion (bons/mauvais identifiants), apparition des
   informations privées une fois connecté, création et édition d'un objet
-  via le formulaire, déconnexion.
+  via le formulaire, le select "Département" (liste fixe + saisie libre via
+  "Autre"), déconnexion.
 - `test_wishlist.py` — l'onglet Souhaits est masqué pour un invité et
   visible pour l'admin, ajout de souhaits, ouverture d'une fiche de
   souhait avec restauration du scroll, conversion d'un souhait en objet du
   catalogue ("Trouvé").
 - `test_sources.py` — les sources d'une fiche objet (références, lien,
-  document joint) : masquées en ajout pour un invité, ajout d'une source
-  avec lien + fichier joint par l'admin via le mock de la fonction
-  serverless "photo-storage" (voir `__FAKE_BUCKET__` dans `mock_stub.js`),
-  affichage sur la fiche, puis suppression.
+  document joint) : invisibles sur la fiche d'un objet qui n'en a pas,
+  aucune gestion possible depuis la fiche elle-même (même en admin), ajout
+  puis modification d'une source (avec lien + fichier joint, via le mock de
+  la fonction serverless "photo-storage" — voir `__FAKE_BUCKET__` dans
+  `mock_stub.js`) depuis le formulaire de modification de l'objet,
+  affichage en lecture seule sur la fiche, puis suppression.
 
 Chaque test vérifie aussi qu'aucune erreur JavaScript ne s'est produite
 pendant le parcours qu'il joue.

@@ -1,7 +1,8 @@
 """
-Sources d'une fiche objet : masquées de l'ajout pour un invité (lecture
-seule), ajout d'une source avec lien + document joint par l'admin,
-affichage sur la fiche, puis suppression.
+Sources d'une fiche objet : affichage en lecture seule sur la fiche (pour
+tout le monde), gestion complète (ajout, modification, suppression)
+uniquement depuis le formulaire de modification de l'objet, réservé à
+l'admin.
 
 Lancer : python3 tests/test_sources.py
 Prérequis : python3 tests/build_preview.py (régénère tests/preview.html)
@@ -31,16 +32,14 @@ async def main():
         await page.goto(f"file://{PREVIEW}")
         await page.wait_for_timeout(1000)
 
-        # ---- Invité : la fiche n'a pas de bouton d'ajout de source ----
+        # ---- Invité : objet sans source -> le bloc "Sources" n'apparaît même pas ----
         if await page.locator("#loginCancelBtn").is_visible():
             await page.click("#loginCancelBtn")
         await page.wait_for_timeout(500)
         await page.evaluate("() => openFiche(ALL_OBJETS[0].uid)")
         await page.wait_for_timeout(400)
-        no_source_guest = await page.locator("#sourcesWrap .state-msg").count()
-        check("un invité voit « Aucune source renseignée »", no_source_guest > 0)
-        add_btn_guest = await page.locator("#addSourceToggleBtn").count()
-        check("un invité n'a pas de bouton pour ajouter une source", add_btn_guest == 0)
+        sources_wrap_empty_guest = await page.locator("#sourcesWrap").inner_html()
+        check("un invité ne voit aucun bloc Sources sur un objet qui n'en a pas", sources_wrap_empty_guest.strip() == "")
 
         # ---- Connexion admin ----
         await page.click("#sidebarLoginBtn")
@@ -50,10 +49,17 @@ async def main():
         await page.click("#loginSubmitBtn")
         await page.wait_for_timeout(700)
 
+        # ---- La fiche en consultation (même en admin) n'a pas de gestion de sources ----
         await page.evaluate("() => openFiche(ALL_OBJETS[0].uid)")
         await page.wait_for_timeout(400)
-        no_source_admin = await page.locator("#sourcesWrap .state-msg").count()
-        check("l'admin voit aussi « Aucune source renseignée » au départ", no_source_admin > 0)
+        add_btn_on_fiche = await page.locator("#addSourceToggleBtn").count()
+        check("aucun bouton d'ajout de source sur la fiche, même en admin", add_btn_on_fiche == 0)
+
+        # ---- Formulaire de modification : la section Sources apparaît ----
+        await page.evaluate("() => openForm('edit', ALL_OBJETS[0])")
+        await page.wait_for_timeout(300)
+        no_source_admin = await page.locator("#sourcesWrapForm .state-msg").count()
+        check("le formulaire affiche « Aucune source renseignée » au départ", no_source_admin > 0)
 
         # ---- Ajoute une source avec lien + document joint ----
         await page.click("#addSourceToggleBtn")
@@ -72,11 +78,11 @@ async def main():
         await page.click("#saveSourceBtn")
         await page.wait_for_timeout(500)
 
-        card_count = await page.locator("#sourcesWrap .source-card").count()
-        check("la source ajoutée apparaît sur la fiche", card_count == 1, f"{card_count} carte(s)")
-        titre_text = await page.locator("#sourcesWrap .source-titre").inner_text()
+        card_count = await page.locator("#sourcesWrapForm .source-card").count()
+        check("la source ajoutée apparaît dans le formulaire", card_count == 1, f"{card_count} carte(s)")
+        titre_text = await page.locator("#sourcesWrapForm .source-titre").inner_text()
         check("le titre de la source est affiché", "Insignes de la Résistance" in titre_text, titre_text)
-        link_count = await page.locator("#sourcesWrap .source-links a").count()
+        link_count = await page.locator("#sourcesWrapForm .source-links a").count()
         check("le lien et le document joint sont tous les deux affichés", link_count == 2, f"{link_count} lien(s)")
 
         bucket_has_file = await page.evaluate(
@@ -84,14 +90,37 @@ async def main():
         )
         check("le document a bien été envoyé (mock Scaleway)", bucket_has_file)
 
+        # ---- La fiche en consultation affiche maintenant la source, en lecture seule ----
+        await page.evaluate("() => openFiche(ALL_OBJETS[0].uid)")
+        await page.wait_for_timeout(400)
+        fiche_card_count = await page.locator("#sourcesWrap .source-card").count()
+        check("la source apparaît sur la fiche en consultation", fiche_card_count == 1, f"{fiche_card_count} carte(s)")
+        fiche_edit_btn_count = await page.locator("#sourcesWrap .source-edit-btn, #sourcesWrap .source-del-btn").count()
+        check("aucun bouton de modification/suppression sur la fiche", fiche_edit_btn_count == 0)
+
+        # ---- Modifie la source depuis le formulaire ----
+        await page.evaluate("() => openForm('edit', ALL_OBJETS[0])")
+        await page.wait_for_timeout(300)
+        await page.click("#sourcesWrapForm .source-edit-btn")
+        await page.wait_for_timeout(200)
+        source_id = await page.evaluate("() => CURRENT_FICHE_SOURCES[0].id")
+        titre_edit_input = page.locator(f"#srcTitre_{source_id}")
+        prefilled_value = await titre_edit_input.input_value()
+        check("le champ titre du mini-formulaire est pré-rempli", "Insignes de la Résistance" in prefilled_value, prefilled_value)
+        await titre_edit_input.fill("Insignes de la Résistance, édition 1986 (corrigée)")
+        await page.click(f"#sourceEditForm_{source_id} .btn-primary")
+        await page.wait_for_timeout(500)
+        titre_after_edit = await page.locator("#sourcesWrapForm .source-titre").inner_text()
+        check("le titre modifié est bien enregistré", "corrigée" in titre_after_edit, titre_after_edit)
+
         # ---- Supprime la source (passe par la modale de confirmation générique) ----
-        await page.click("#sourcesWrap .source-del-btn")
+        await page.click("#sourcesWrapForm .source-del-btn")
         await page.wait_for_timeout(200)
         await page.click("#genericConfirmOkBtn")
         await page.wait_for_timeout(400)
-        card_count_after = await page.locator("#sourcesWrap .source-card").count()
-        check("la source supprimée disparaît de la fiche", card_count_after == 0, f"{card_count_after} carte(s)")
-        no_source_after = await page.locator("#sourcesWrap .state-msg").count()
+        card_count_after = await page.locator("#sourcesWrapForm .source-card").count()
+        check("la source supprimée disparaît du formulaire", card_count_after == 0, f"{card_count_after} carte(s)")
+        no_source_after = await page.locator("#sourcesWrapForm .state-msg").count()
         check("on retombe sur « Aucune source renseignée » après suppression", no_source_after > 0)
 
         check("aucune erreur JS pendant le parcours sources", len(errors) == 0, str(errors))
