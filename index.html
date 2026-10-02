@@ -937,12 +937,18 @@
     .photo-tile.small{width:calc((100% - 20px) / 3); box-sizing:border-box;}
   }
 
-  /* Sources d'une fiche objet (voir showFiche()/renderSourcesSection()) */
+  /* Sources d'une fiche objet : affichage en lecture seule sur la fiche
+     (voir showFiche()), gestion complète (ajout/modification/suppression)
+     uniquement depuis le formulaire de modification (voir openForm() et
+     renderSourcesSection()). */
   .sources-wrap{margin:0 26px 20px;}
+  .form-sources-wrap{margin:0;}
   .source-card{border:1px solid var(--border); border-radius:var(--r-md); background:var(--surface-2); padding:12px 14px; margin-bottom:10px;}
   .source-card-top{display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;}
+  .source-card-actions{display:flex; gap:6px; flex:none;}
   .source-type-badge{font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--accent); background:color-mix(in srgb, var(--accent) 14%, transparent); padding:2px 9px; border-radius:20px;}
-  .source-del-btn{width:20px; height:20px; border-radius:50%; background:var(--surface); border:1px solid var(--border); color:var(--ink-soft); cursor:pointer; line-height:1; flex:none;}
+  .source-edit-btn, .source-del-btn{width:20px; height:20px; border-radius:50%; background:var(--surface); border:1px solid var(--border); color:var(--ink-soft); cursor:pointer; line-height:1; flex:none; font-size:11px; display:flex; align-items:center; justify-content:center; padding:0;}
+  .source-edit-btn:hover{color:var(--accent); border-color:var(--accent);}
   .source-del-btn:hover{color:var(--danger); border-color:var(--danger);}
   .source-titre{font-weight:600; font-size:13.5px; color:var(--ink);}
   .source-auteur{font-size:12px; color:var(--ink-soft); margin-top:2px;}
@@ -3037,7 +3043,7 @@ function showFiche(uid){
   renderPhotoGallery(uid);
   hydrateCachedImages(document.getElementById('ficheContent'));
   renderObjectMiniMap(uid, o.departement);
-  loadAndRenderSources(uid);
+  loadAndRenderSources(uid, 'sourcesWrap', false);
   switchView('fiche');
   window.scrollTo({top: 0, behavior: 'instant'});
 }
@@ -3096,14 +3102,17 @@ function openFiche(uid, push=true){
 // ============================================================
 // Sources d'une fiche objet (références bibliographiques, liens, documents
 // joints) — table Supabase "sources" (1 ligne par source, plusieurs par
-// objet, comme "photos"). Visible de tous (lecture publique sur la table),
-// ajout/suppression réservés à l'admin. Pas de version "souhait" : la table
-// ne référence que des objets déjà possédés (colonne "objet_uid").
+// objet, comme "photos"). Lecture publique sur la table : affichées sur la
+// fiche pour tout le monde (voir showFiche()), mais en lecture seule.
+// L'ajout, la modification et la suppression sont réservés à l'admin et ne
+// se font que depuis le formulaire de modification de l'objet (openForm()),
+// jamais directement sur la fiche. Pas de version "souhait" : la table ne
+// référence que des objets déjà possédés (colonne "objet_uid").
 // ============================================================
 let CURRENT_FICHE_SOURCES = [];
 
-async function loadAndRenderSources(uid){
-  const el = document.getElementById('sourcesWrap');
+async function loadAndRenderSources(uid, containerId, editable){
+  const el = document.getElementById(containerId);
   if(!el) return;
   const { data, error } = await sb.from('sources').select('*').eq('objet_uid', uid).order('created_at');
   if(error){
@@ -3113,31 +3122,67 @@ async function loadAndRenderSources(uid){
   } else {
     CURRENT_FICHE_SOURCES = data || [];
   }
-  renderSourcesSection(uid);
+  renderSourcesSection(uid, containerId, editable);
 }
 
-function renderSourcesSection(uid){
-  const el = document.getElementById('sourcesWrap');
+function renderSourcesSection(uid, containerId, editable){
+  const el = document.getElementById(containerId);
   if(!el) return;
+  // Fiche en consultation (lecture seule) sans aucune source : on n'affiche
+  // même pas le bloc "Sources" vide, pour ne pas alourdir la fiche d'un
+  // objet qui n'en a pas. Dans le formulaire de modification (editable),
+  // le bloc reste visible avec son bouton d'ajout même sans aucune source.
+  if(!editable && CURRENT_FICHE_SOURCES.length === 0){
+    el.innerHTML = '';
+    return;
+  }
   const cards = CURRENT_FICHE_SOURCES.map(s => `
     <div class="source-card">
       <div class="source-card-top">
         <span class="source-type-badge">${esc(s.type_source) || 'Source'}</span>
-        ${IS_ADMIN ? `<button class="source-del-btn" title="Supprimer cette source" onclick="handleDeleteSource('${s.id}','${uid}')">×</button>` : ''}
+        ${editable ? `
+          <div class="source-card-actions">
+            <button class="source-edit-btn" type="button" title="Modifier cette source" onclick="handleEditSourceToggle('${s.id}')">✎</button>
+            <button class="source-del-btn" type="button" title="Supprimer cette source" onclick="handleDeleteSource('${s.id}','${uid}','${containerId}')">×</button>
+          </div>
+        ` : ''}
       </div>
-      <div class="source-titre">${esc(s.titre_source) || '—'}</div>
-      ${s.auteur_editeur ? `<div class="source-auteur">${esc(s.auteur_editeur)}</div>` : ''}
-      ${s.note ? `<div class="source-note rich-text">${formatRichText(s.note)}</div>` : ''}
-      <div class="source-links">
-        ${s.lien ? `<a href="${esc(s.lien)}" target="_blank" rel="noopener noreferrer">Voir le lien ↗</a>` : ''}
-        ${s.fichier_path ? `<a href="${esc(scalewayPublicUrl(s.fichier_path))}" target="_blank" rel="noopener noreferrer">${esc(s.fichier_nom) || 'Ouvrir le document'} ↗</a>` : ''}
+      <div class="source-view" id="sourceView_${s.id}">
+        <div class="source-titre">${esc(s.titre_source) || '—'}</div>
+        ${s.auteur_editeur ? `<div class="source-auteur">${esc(s.auteur_editeur)}</div>` : ''}
+        ${s.note ? `<div class="source-note rich-text">${formatRichText(s.note)}</div>` : ''}
+        <div class="source-links">
+          ${s.lien ? `<a href="${esc(s.lien)}" target="_blank" rel="noopener noreferrer">Voir le lien ↗</a>` : ''}
+          ${s.fichier_path ? `<a href="${esc(scalewayPublicUrl(s.fichier_path))}" target="_blank" rel="noopener noreferrer">${esc(s.fichier_nom) || 'Ouvrir le document'} ↗</a>` : ''}
+        </div>
       </div>
+      ${editable ? `
+        <div class="source-form" id="sourceEditForm_${s.id}" style="display:none;">
+          <div class="form-grid">
+            <div class="form-field"><label for="srcType_${s.id}">Type</label>
+              <select id="srcType_${s.id}">${TYPE_SOURCE_OPTIONS.map(t=>`<option value="${esc(t)}" ${t===s.type_source?'selected':''}>${esc(t)}</option>`).join('')}</select>
+            </div>
+            <div class="form-field"><label for="srcTitre_${s.id}">Titre</label><input id="srcTitre_${s.id}" type="text" value="${esc(s.titre_source)}"></div>
+            <div class="form-field"><label for="srcAuteur_${s.id}">Auteur / éditeur</label><input id="srcAuteur_${s.id}" type="text" value="${esc(s.auteur_editeur)}"></div>
+            <div class="form-field"><label for="srcLien_${s.id}">Lien</label><input id="srcLien_${s.id}" type="text" placeholder="https://…" value="${esc(s.lien)}"></div>
+            <div class="form-field full"><label for="srcNote_${s.id}">Note</label><textarea id="srcNote_${s.id}">${esc(s.note)}</textarea></div>
+            <div class="form-field full"><label for="srcFichier_${s.id}">Document joint (PDF…, 20 Mo max)</label>
+              <input id="srcFichier_${s.id}" type="file">
+              ${s.fichier_path ? `<div class="field-hint">Document actuel : ${esc(s.fichier_nom) || 'document'} — laisser ce champ vide pour le garder tel quel.</div>` : ''}
+            </div>
+          </div>
+          <div class="modal-actions">
+            <button class="btn btn-secondary" type="button" onclick="handleEditSourceToggle('${s.id}')">Annuler</button>
+            <button class="btn btn-primary" type="button" onclick="handleSaveSourceEdit('${s.id}','${uid}','${containerId}')">Enregistrer</button>
+          </div>
+        </div>
+      ` : ''}
     </div>
   `).join('');
   el.innerHTML = `
     <div class="extra-photos-label">Sources</div>
     ${cards || '<div class="state-msg">Aucune source renseignée</div>'}
-    ${IS_ADMIN ? `
+    ${editable ? `
       <button class="btn btn-secondary" id="addSourceToggleBtn" type="button" style="margin-top:10px;">+ Ajouter une source</button>
       <div class="source-form" id="addSourceForm" style="display:none;">
         <div class="form-grid">
@@ -3157,16 +3202,16 @@ function renderSourcesSection(uid){
       </div>
     ` : ''}
   `;
-  if(IS_ADMIN){
+  if(editable){
     const toggleBtn = document.getElementById('addSourceToggleBtn');
     const form = document.getElementById('addSourceForm');
     toggleBtn.addEventListener('click', ()=>{ form.style.display = 'block'; toggleBtn.style.display = 'none'; });
     document.getElementById('cancelSourceBtn').addEventListener('click', ()=>{ form.style.display = 'none'; toggleBtn.style.display = 'inline-block'; });
-    document.getElementById('saveSourceBtn').addEventListener('click', ()=> handleAddSource(uid));
+    document.getElementById('saveSourceBtn').addEventListener('click', ()=> handleAddSource(uid, containerId));
   }
 }
 
-async function handleAddSource(uid){
+async function handleAddSource(uid, containerId){
   const titre = document.getElementById('srcTitre').value.trim();
   if(!titre){ showToast('Le titre de la source est obligatoire.', 'error'); return; }
   const file = document.getElementById('srcFichier').files[0];
@@ -3201,14 +3246,72 @@ async function handleAddSource(uid){
     }
     const { error: insErr } = await sb.from('sources').insert(payload);
     if(insErr){ showToast("Erreur d'enregistrement de la source : " + insErr.message, 'error'); return; }
-    await loadAndRenderSources(uid);
+    await loadAndRenderSources(uid, containerId, true);
   } finally {
     saveBtn.disabled = false;
     saveBtn.textContent = originalLabel;
   }
 }
 
-async function handleDeleteSource(sourceId, uid){
+// Bascule une source entre son affichage (source-view) et son mini-formulaire
+// de modification pré-rempli (source-form), tous deux déjà présents dans le
+// DOM pour chaque source — voir renderSourcesSection().
+function handleEditSourceToggle(sourceId){
+  const viewEl = document.getElementById('sourceView_'+sourceId);
+  const formEl = document.getElementById('sourceEditForm_'+sourceId);
+  if(!viewEl || !formEl) return;
+  const nowEditing = formEl.style.display === 'none';
+  formEl.style.display = nowEditing ? 'block' : 'none';
+  viewEl.style.display = nowEditing ? 'none' : 'block';
+}
+
+async function handleSaveSourceEdit(sourceId, uid, containerId){
+  const titre = document.getElementById('srcTitre_'+sourceId).value.trim();
+  if(!titre){ showToast('Le titre de la source est obligatoire.', 'error'); return; }
+  const file = document.getElementById('srcFichier_'+sourceId).files[0];
+  if(file && file.size > SOURCE_FILE_MAX_BYTES){
+    showToast('Le fichier dépasse la limite de 20 Mo.', 'error');
+    return;
+  }
+  const saveBtn = document.querySelector(`#sourceEditForm_${sourceId} .btn-primary`);
+  const originalLabel = saveBtn ? saveBtn.textContent : '';
+  if(saveBtn){ saveBtn.disabled = true; saveBtn.textContent = 'Enregistrement…'; }
+  try{
+    const payload = {
+      type_source: document.getElementById('srcType_'+sourceId).value,
+      titre_source: titre,
+      auteur_editeur: document.getElementById('srcAuteur_'+sourceId).value.trim() || null,
+      lien: document.getElementById('srcLien_'+sourceId).value.trim() || null,
+      note: document.getElementById('srcNote_'+sourceId).value.trim() || null,
+    };
+    if(file){
+      // Remplace le document existant : suppression de l'ancien, best-effort
+      // comme deletePhotoWithThumb() — une erreur ici n'empêche pas l'envoi
+      // du nouveau fichier ni la sauvegarde du reste de la source.
+      const source = CURRENT_FICHE_SOURCES.find(s => String(s.id) === String(sourceId));
+      if(source && source.fichier_path){
+        try{ await deleteFromScaleway(source.fichier_path); }catch(err){ /* non bloquant */ }
+      }
+      const ext = (file.name.split('.').pop() || 'pdf').toLowerCase();
+      const path = `sources/${uid}/${Date.now()}.${ext}`;
+      try{
+        await uploadToScaleway(path, file, file.type || 'application/octet-stream');
+      }catch(err){
+        showToast("Erreur d'envoi du document : " + (err.detail || err.message), 'error');
+        return;
+      }
+      payload.fichier_path = path;
+      payload.fichier_nom = file.name;
+    }
+    const { error } = await sb.from('sources').update(payload).eq('id', sourceId);
+    if(error){ showToast('Erreur de modification de la source : ' + error.message, 'error'); return; }
+    await loadAndRenderSources(uid, containerId, true);
+  } finally {
+    if(saveBtn){ saveBtn.disabled = false; saveBtn.textContent = originalLabel; }
+  }
+}
+
+async function handleDeleteSource(sourceId, uid, containerId){
   if(!await askGenericConfirm('Supprimer cette source ?', 'Supprimer')) return;
   const source = CURRENT_FICHE_SOURCES.find(s => String(s.id) === String(sourceId));
   if(source && source.fichier_path){
@@ -3219,7 +3322,7 @@ async function handleDeleteSource(sourceId, uid){
   }
   const { error } = await sb.from('sources').delete().eq('id', sourceId);
   if(error){ showToast('Erreur de suppression : ' + error.message, 'error'); return; }
-  await loadAndRenderSources(uid);
+  await loadAndRenderSources(uid, containerId, true);
 }
 
 // ============================================================
@@ -3521,10 +3624,45 @@ function computeDetailTirage(type, quantite){
 }
 const VISIBILITE_OPTIONS = ['Partageable','Privé'];
 
+// Bascule entre la liste fixe des départements et un champ libre "Autre" —
+// voir fieldHtml() (branche "departement") pour le détail du mécanisme : la
+// valeur réellement enregistrée vit dans un champ caché, le select et le
+// champ texte ne sont que l'interface.
+function onDepartementSelectChange(prefix){
+  const sel = document.getElementById(prefix+'departement_select');
+  const txt = document.getElementById(prefix+'departement_autre');
+  const hidden = document.getElementById(prefix+'departement');
+  if(!sel || !txt || !hidden) return;
+  if(sel.value === '__autre__'){
+    txt.style.display = 'block';
+    hidden.value = txt.value;
+    txt.focus();
+  } else {
+    txt.style.display = 'none';
+    hidden.value = sel.value;
+  }
+}
+
 // Génère un champ du formulaire (texte, select ou zone de texte) selon son type.
 function fieldHtml(col, label, type, val, opts, prefix){
   prefix = prefix || 'f_';
   const v = (val===undefined || val===null) ? '' : val;
+  if(col==='departement' && type==='select'){
+    // Select avec la liste fixe des départements (DEPARTEMENTS_FR), plus une
+    // option "Autre" qui révèle un champ libre : certaines fiches utilisent
+    // des valeurs hors de cette liste (plusieurs départements séparés par
+    // ";", zones "A1"-"A5", ancienne saisie libre...) qu'il faut pouvoir
+    // saisir à la main sans être bloqué par le select.
+    const isCustom = !!v && !opts.includes(v);
+    return `<div class="form-field"><label for="${prefix}${col}_select">${esc(label)}</label>
+      <select id="${prefix}${col}_select" onchange="onDepartementSelectChange('${prefix}')">
+        ${opts.map(o=>`<option value="${esc(o)}" ${(!isCustom && o===v)?'selected':''}>${esc(o)||'—'}</option>`).join('')}
+        <option value="__autre__" ${isCustom?'selected':''}>Autre (préciser)…</option>
+      </select>
+      <input type="text" id="${prefix}${col}_autre" placeholder="Nom du département" value="${isCustom?esc(v):''}" style="margin-top:6px;${isCustom?'':'display:none;'}" oninput="document.getElementById('${prefix}${col}').value=this.value">
+      <input type="hidden" id="${prefix}${col}" value="${esc(v)}">
+    </div>`;
+  }
   if(type==='select'){
     return `<div class="form-field"><label for="${prefix}${col}">${esc(label)}</label>
       <select id="${prefix}${col}">${opts.map(o=>`<option value="${esc(o)}" ${o===v?'selected':''}>${esc(o)||'—'}</option>`).join('')}</select>
@@ -3667,6 +3805,13 @@ function openForm(mode, objet){
         </div>
       </div>
 
+      ${mode==='edit' ? `
+      <div class="form-section">
+        <h4>Sources</h4>
+        <div id="sourcesWrapForm" class="sources-wrap form-sources-wrap"></div>
+      </div>
+      ` : ''}
+
       <div class="form-actions">
         <button class="btn btn-primary" id="saveObjetBtn">${mode==='edit' ? 'Enregistrer les modifications' : "Créer l'objet"}</button>
         <span class="form-msg" id="formMsg"></span>
@@ -3679,6 +3824,13 @@ function openForm(mode, objet){
   // (texte libre), sauf si ce dernier contient déjà un texte personnalisé
   // qui ne correspond pas à ce que type+quantité auraient généré.
   wireTirageAutofillFor('f_');
+
+  // Les sources ne peuvent être gérées que pour un objet déjà existant (la
+  // table "sources" référence un objet_uid) — pas de section lors de la
+  // création : elle n'apparaît qu'après le premier enregistrement.
+  if(mode==='edit'){
+    loadAndRenderSources(FORM_UID, 'sourcesWrapForm', true);
+  }
 
   switchView('form');
 }
