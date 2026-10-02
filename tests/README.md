@@ -27,6 +27,11 @@ Scaleway : un faux backend (`mock_stub.js`) est injecté dans une copie de
   visible pour l'admin, ajout de souhaits, ouverture d'une fiche de
   souhait avec restauration du scroll, conversion d'un souhait en objet du
   catalogue ("Trouvé").
+- `test_sources.py` — les sources d'une fiche objet (références, lien,
+  document joint) : masquées en ajout pour un invité, ajout d'une source
+  avec lien + fichier joint par l'admin via le mock de la fonction
+  serverless "photo-storage" (voir `__FAKE_BUCKET__` dans `mock_stub.js`),
+  affichage sur la fiche, puis suppression.
 
 Chaque test vérifie aussi qu'aucune erreur JavaScript ne s'est produite
 pendant le parcours qu'il joue.
@@ -41,6 +46,7 @@ python3 tests/build_preview.py
 python3 tests/test_navigation.py
 python3 tests/test_admin.py
 python3 tests/test_wishlist.py
+python3 tests/test_sources.py
 ```
 
 Chaque script affiche `[OK]` ou `[FAIL]` ligne par ligne, et se termine par
