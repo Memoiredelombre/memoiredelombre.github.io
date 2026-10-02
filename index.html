@@ -947,7 +947,12 @@
   .source-card-top{display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;}
   .source-card-actions{display:flex; gap:6px; flex:none;}
   .source-type-badge{font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--accent); background:color-mix(in srgb, var(--accent) 14%, transparent); padding:2px 9px; border-radius:20px;}
-  .source-edit-btn, .source-del-btn{width:20px; height:20px; border-radius:50%; background:var(--surface); border:1px solid var(--border); color:var(--ink-soft); cursor:pointer; line-height:1; flex:none; font-size:11px; display:flex; align-items:center; justify-content:center; padding:0;}
+  /* En SVG plutôt qu'en caractères ("✎", "×") : comme pour les flèches du
+     lightbox (voir plus bas), le rendu d'un glyphe de police n'est jamais
+     parfaitement centré optiquement dans un cercle — un vrai tracé garantit
+     un centrage pixel-perfect quel que soit le navigateur. */
+  .source-edit-btn, .source-del-btn{width:20px; height:20px; border-radius:50%; background:var(--surface); border:1px solid var(--border); color:var(--ink-soft); cursor:pointer; flex:none; padding:0; display:flex; align-items:center; justify-content:center;}
+  .source-edit-btn svg, .source-del-btn svg{width:11px; height:11px; display:block;}
   .source-edit-btn:hover{color:var(--accent); border-color:var(--accent);}
   .source-del-btn:hover{color:var(--danger); border-color:var(--danger);}
   .source-titre{font-weight:600; font-size:13.5px; color:var(--ink);}
@@ -3142,8 +3147,8 @@ function renderSourcesSection(uid, containerId, editable){
         <span class="source-type-badge">${esc(s.type_source) || 'Source'}</span>
         ${editable ? `
           <div class="source-card-actions">
-            <button class="source-edit-btn" type="button" title="Modifier cette source" onclick="handleEditSourceToggle('${s.id}')">✎</button>
-            <button class="source-del-btn" type="button" title="Supprimer cette source" onclick="handleDeleteSource('${s.id}','${uid}','${containerId}')">×</button>
+            <button class="source-edit-btn" type="button" title="Modifier cette source" onclick="handleEditSourceToggle('${s.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+            <button class="source-del-btn" type="button" title="Supprimer cette source" onclick="handleDeleteSource('${s.id}','${uid}','${containerId}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
           </div>
         ` : ''}
       </div>
