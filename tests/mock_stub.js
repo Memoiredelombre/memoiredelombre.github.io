@@ -35,6 +35,8 @@ window.__FAKE_PHOTOS__ = window.__FAKE_ROWS__.map((o, i) => ({
 
 window.__FAKE_WISHLIST__ = [];
 window.__FAKE_WISHLIST_PHOTOS__ = [];
+window.__FAKE_SOURCES__ = [];
+window.__FAKE_BUCKET__ = {};
 
 // ---------- Client Supabase minimal ----------
 window.supabase = {
@@ -136,6 +138,7 @@ window.supabase = {
       photos: genericTable(window.__FAKE_PHOTOS__, 'photo', {}),
       wishlist: genericTable(window.__FAKE_WISHLIST__, 'wish', {}),
       wishlist_photos: genericTable(window.__FAKE_WISHLIST_PHOTOS__, 'wishphoto', {}),
+      sources: genericTable(window.__FAKE_SOURCES__, 'src', {}),
     };
 
     let session = null;
@@ -156,6 +159,26 @@ window.supabase = {
         },
         signOut: async () => { session = null; return { error: null }; },
         updateUser: async () => ({ data: {}, error: null }),
+      },
+      // Mock de la fonction serverless "photo-storage" (voir
+      // uploadToScaleway()/deleteFromScaleway()) : stocke en mémoire plutôt
+      // que sur le vrai Scaleway, pour pouvoir tester un envoi de photo ou de
+      // document joint (sources) sans réseau.
+      functions: {
+        invoke: async (name, opts) => {
+          const body = (opts && opts.body) || {};
+          if (name === 'photo-storage') {
+            if (body.action === 'upload') {
+              window.__FAKE_BUCKET__[body.path] = { contentType: body.contentType };
+              return { data: { ok: true }, error: null };
+            }
+            if (body.action === 'delete') {
+              delete window.__FAKE_BUCKET__[body.path];
+              return { data: { ok: true }, error: null };
+            }
+          }
+          return { data: null, error: { message: `mock_stub: fonction "${name}" / action "${body.action}" non gérée` } };
+        },
       },
     };
   },
