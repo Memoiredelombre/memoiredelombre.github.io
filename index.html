@@ -937,6 +937,20 @@
     .photo-tile.small{width:calc((100% - 20px) / 3); box-sizing:border-box;}
   }
 
+  /* Sources d'une fiche objet (voir showFiche()/renderSourcesSection()) */
+  .sources-wrap{margin:0 26px 20px;}
+  .source-card{border:1px solid var(--border); border-radius:var(--r-md); background:var(--surface-2); padding:12px 14px; margin-bottom:10px;}
+  .source-card-top{display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;}
+  .source-type-badge{font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--accent); background:color-mix(in srgb, var(--accent) 14%, transparent); padding:2px 9px; border-radius:20px;}
+  .source-del-btn{width:20px; height:20px; border-radius:50%; background:var(--surface); border:1px solid var(--border); color:var(--ink-soft); cursor:pointer; line-height:1; flex:none;}
+  .source-del-btn:hover{color:var(--danger); border-color:var(--danger);}
+  .source-titre{font-weight:600; font-size:13.5px; color:var(--ink);}
+  .source-auteur{font-size:12px; color:var(--ink-soft); margin-top:2px;}
+  .source-note{font-size:12.5px; color:var(--ink-soft); margin-top:6px;}
+  .source-links{display:flex; gap:16px; margin-top:8px; font-size:12.5px;}
+  .source-links a{color:var(--accent);}
+  .source-form{border:1px solid var(--border); border-radius:var(--r-md); padding:16px; margin-top:10px; background:var(--surface-2);}
+
   /* ---------- Lightbox ---------- */
   /* z-index 400 (au-dessus de .modal-overlay=300) : le lightbox peut
      désormais s'ouvrir depuis les photos d'un souhait, gérées dans une
@@ -3012,6 +3026,7 @@ function showFiche(uid){
           <div class="field-row full"><div class="k">Infos / historique</div><div class="v rich-text">${formatRichText(o.infos)}</div></div>
         </div>
       </div>
+      <div id="sourcesWrap" class="sources-wrap"></div>
       <div id="objMiniMap" class="obj-mini-map"></div>
     </div>
     ${IS_ADMIN ? renderFichePrivateBento(o) : ''}
@@ -3022,6 +3037,7 @@ function showFiche(uid){
   renderPhotoGallery(uid);
   hydrateCachedImages(document.getElementById('ficheContent'));
   renderObjectMiniMap(uid, o.departement);
+  loadAndRenderSources(uid);
   switchView('fiche');
   window.scrollTo({top: 0, behavior: 'instant'});
 }
@@ -3075,6 +3091,135 @@ function objMapPinIcon(){
 function openFiche(uid, push=true){
   showFiche(uid);
   if(push) pushNav('fiche', uid);
+}
+
+// ============================================================
+// Sources d'une fiche objet (références bibliographiques, liens, documents
+// joints) — table Supabase "sources" (1 ligne par source, plusieurs par
+// objet, comme "photos"). Visible de tous (lecture publique sur la table),
+// ajout/suppression réservés à l'admin. Pas de version "souhait" : la table
+// ne référence que des objets déjà possédés (colonne "objet_uid").
+// ============================================================
+let CURRENT_FICHE_SOURCES = [];
+
+async function loadAndRenderSources(uid){
+  const el = document.getElementById('sourcesWrap');
+  if(!el) return;
+  const { data, error } = await sb.from('sources').select('*').eq('objet_uid', uid).order('created_at');
+  if(error){
+    console.error('Erreur chargement sources:', error);
+    if(typeof showToast === 'function') showToast("Les sources n'ont pas pu être chargées : " + error.message, 'error');
+    CURRENT_FICHE_SOURCES = [];
+  } else {
+    CURRENT_FICHE_SOURCES = data || [];
+  }
+  renderSourcesSection(uid);
+}
+
+function renderSourcesSection(uid){
+  const el = document.getElementById('sourcesWrap');
+  if(!el) return;
+  const cards = CURRENT_FICHE_SOURCES.map(s => `
+    <div class="source-card">
+      <div class="source-card-top">
+        <span class="source-type-badge">${esc(s.type_source) || 'Source'}</span>
+        ${IS_ADMIN ? `<button class="source-del-btn" title="Supprimer cette source" onclick="handleDeleteSource('${s.id}','${uid}')">×</button>` : ''}
+      </div>
+      <div class="source-titre">${esc(s.titre_source) || '—'}</div>
+      ${s.auteur_editeur ? `<div class="source-auteur">${esc(s.auteur_editeur)}</div>` : ''}
+      ${s.note ? `<div class="source-note rich-text">${formatRichText(s.note)}</div>` : ''}
+      <div class="source-links">
+        ${s.lien ? `<a href="${esc(s.lien)}" target="_blank" rel="noopener noreferrer">Voir le lien ↗</a>` : ''}
+        ${s.fichier_path ? `<a href="${esc(scalewayPublicUrl(s.fichier_path))}" target="_blank" rel="noopener noreferrer">${esc(s.fichier_nom) || 'Ouvrir le document'} ↗</a>` : ''}
+      </div>
+    </div>
+  `).join('');
+  el.innerHTML = `
+    <div class="extra-photos-label">Sources</div>
+    ${cards || '<div class="state-msg">Aucune source renseignée</div>'}
+    ${IS_ADMIN ? `
+      <button class="btn btn-secondary" id="addSourceToggleBtn" type="button" style="margin-top:10px;">+ Ajouter une source</button>
+      <div class="source-form" id="addSourceForm" style="display:none;">
+        <div class="form-grid">
+          <div class="form-field"><label for="srcType">Type</label>
+            <select id="srcType">${TYPE_SOURCE_OPTIONS.map(t=>`<option value="${esc(t)}">${esc(t)}</option>`).join('')}</select>
+          </div>
+          <div class="form-field"><label for="srcTitre">Titre</label><input id="srcTitre" type="text"></div>
+          <div class="form-field"><label for="srcAuteur">Auteur / éditeur</label><input id="srcAuteur" type="text"></div>
+          <div class="form-field"><label for="srcLien">Lien</label><input id="srcLien" type="text" placeholder="https://…"></div>
+          <div class="form-field full"><label for="srcNote">Note</label><textarea id="srcNote"></textarea></div>
+          <div class="form-field full"><label for="srcFichier">Document joint (PDF…, 20 Mo max)</label><input id="srcFichier" type="file"></div>
+        </div>
+        <div class="modal-actions">
+          <button class="btn btn-secondary" id="cancelSourceBtn" type="button">Annuler</button>
+          <button class="btn btn-primary" id="saveSourceBtn" type="button">Enregistrer</button>
+        </div>
+      </div>
+    ` : ''}
+  `;
+  if(IS_ADMIN){
+    const toggleBtn = document.getElementById('addSourceToggleBtn');
+    const form = document.getElementById('addSourceForm');
+    toggleBtn.addEventListener('click', ()=>{ form.style.display = 'block'; toggleBtn.style.display = 'none'; });
+    document.getElementById('cancelSourceBtn').addEventListener('click', ()=>{ form.style.display = 'none'; toggleBtn.style.display = 'inline-block'; });
+    document.getElementById('saveSourceBtn').addEventListener('click', ()=> handleAddSource(uid));
+  }
+}
+
+async function handleAddSource(uid){
+  const titre = document.getElementById('srcTitre').value.trim();
+  if(!titre){ showToast('Le titre de la source est obligatoire.', 'error'); return; }
+  const file = document.getElementById('srcFichier').files[0];
+  if(file && file.size > SOURCE_FILE_MAX_BYTES){
+    showToast('Le fichier dépasse la limite de 20 Mo.', 'error');
+    return;
+  }
+  const saveBtn = document.getElementById('saveSourceBtn');
+  saveBtn.disabled = true;
+  const originalLabel = saveBtn.textContent;
+  saveBtn.textContent = 'Enregistrement…';
+  try{
+    const payload = {
+      objet_uid: uid,
+      type_source: document.getElementById('srcType').value,
+      titre_source: titre,
+      auteur_editeur: document.getElementById('srcAuteur').value.trim() || null,
+      lien: document.getElementById('srcLien').value.trim() || null,
+      note: document.getElementById('srcNote').value.trim() || null,
+    };
+    if(file){
+      const ext = (file.name.split('.').pop() || 'pdf').toLowerCase();
+      const path = `sources/${uid}/${Date.now()}.${ext}`;
+      try{
+        await uploadToScaleway(path, file, file.type || 'application/octet-stream');
+      }catch(err){
+        showToast("Erreur d'envoi du document : " + (err.detail || err.message), 'error');
+        return;
+      }
+      payload.fichier_path = path;
+      payload.fichier_nom = file.name;
+    }
+    const { error: insErr } = await sb.from('sources').insert(payload);
+    if(insErr){ showToast("Erreur d'enregistrement de la source : " + insErr.message, 'error'); return; }
+    await loadAndRenderSources(uid);
+  } finally {
+    saveBtn.disabled = false;
+    saveBtn.textContent = originalLabel;
+  }
+}
+
+async function handleDeleteSource(sourceId, uid){
+  if(!await askGenericConfirm('Supprimer cette source ?', 'Supprimer')) return;
+  const source = CURRENT_FICHE_SOURCES.find(s => String(s.id) === String(sourceId));
+  if(source && source.fichier_path){
+    // Best-effort, comme deletePhotoWithThumb() : un document déjà absent ou
+    // une erreur réseau sur sa suppression ne doit pas empêcher de retirer
+    // la source elle-même.
+    try{ await deleteFromScaleway(source.fichier_path); }catch(err){ /* non bloquant */ }
+  }
+  const { error } = await sb.from('sources').delete().eq('id', sourceId);
+  if(error){ showToast('Erreur de suppression : ' + error.message, 'error'); return; }
+  await loadAndRenderSources(uid);
 }
 
 // ============================================================
@@ -3319,6 +3464,9 @@ async function handleUploadChange(event, uid, label, photoId){
 const RARETE_OPTIONS = ['X','XX','XXX','XXXX','M'];
 const ETAT_OPTIONS = ['Neuf','Très bon état','Bon état','Usure légère','Abîmé','Restauré','À déterminer'];
 const AUTHENTICITE_OPTIONS = ['Authentique','Copie / Reproduction','Refrappe','Faux / Contrefaçon','À vérifier'];
+const TYPE_SOURCE_OPTIONS = ['Livre','Catalogue','Site web','Expertise','Document personnel','Autre'];
+// Taille max d'un fichier joint à une source (voir handleAddSource ci-dessous).
+const SOURCE_FILE_MAX_BYTES = 20 * 1024 * 1024;
 const TYPE_OBJET_OPTIONS = ['Insigne','Brassard','Médaille','Médaille de table','Livre','Document','Porte-clés','Breloque','À classer','Divers'];
 const TYPE_TIRAGE_OPTIONS = ['','TE','TC','Mixte','Inconnu'];
 // Valeurs de "Région" toujours proposées dans le select, même si aucun objet/
