@@ -1798,6 +1798,32 @@ function esc(text){
     .replace(/"/g, '&quot;');
 }
 
+const MOIS_FR = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+
+// Affiche une date de fabrication quelle que soit sa précision : jour connu
+// (JJ/MM/AAAA ou l'ancien format JJ-MM-AAAA enregistré via le sélecteur de
+// date natif avant ce correctif), mois+année (MM/AAAA), ou année seule
+// (AAAA) — la fabrication d'un objet ancien n'est souvent connue
+// qu'approximativement, contrairement à une vraie date. Voir le champ
+// "date_fabrication" dans fieldHtml() pour la saisie correspondante.
+// Un format non reconnu s'affiche tel quel (échappé) plutôt que d'être
+// masqué : on ne perd jamais une information déjà saisie.
+function formatPartialDate(raw){
+  if(!raw) return null;
+  const s = String(raw).trim();
+  let m, y, mo, d;
+  if((m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/))){ [, y, mo, d] = m; }
+  else if((m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/))){ [, d, mo, y] = m; }
+  else if((m = s.match(/^(\d{4})-(\d{1,2})$/))){ [, y, mo] = m; }
+  else if((m = s.match(/^(\d{1,2})\/(\d{4})$/))){ [, mo, y] = m; }
+  else if((m = s.match(/^(\d{4})$/))){ [, y] = m; }
+  else { return esc(s); }
+  const moName = mo ? MOIS_FR[parseInt(mo,10)-1] : null;
+  if(d && moName) return `${parseInt(d,10)} ${moName} ${y}`;
+  if(moName) return `${moName} ${y}`;
+  return y;
+}
+
 // Mise en forme légère pour les champs de texte libre (Infos, Notes) :
 // échappe le HTML par sécurité, puis applique **gras**, *italique*, liens
 // cliquables détectés automatiquement, et conserve les retours à la ligne.
@@ -2978,7 +3004,7 @@ function showFiche(uid){
           <div class="field-row"><div class="k">Taille</div><div class="v mono">${esc(o.taille) || '—'}</div></div>
           <div class="field-row"><div class="k">Fabricant</div><div class="v">${esc(o.fabricant) || '—'}</div></div>
           <div class="field-row"><div class="k">Détail tirage</div><div class="v">${esc(o.detail_tirage) || '—'}</div></div>
-          <div class="field-row"><div class="k">Date de fabrication</div><div class="v mono">${o.date_fabrication ? new Date(o.date_fabrication).toLocaleDateString('fr-FR') : '—'}</div></div>
+          <div class="field-row"><div class="k">Date de fabrication</div><div class="v mono">${formatPartialDate(o.date_fabrication) || '—'}</div></div>
           <div class="field-row"><div class="k">Type de variante</div><div class="v">${esc(o.type_variante) || '—'}</div></div>
           <div class="field-row"><div class="k">Authenticité</div><div class="v">${esc(o.authenticite) || '—'}</div></div>
           <div class="field-row"><div class="k">État de conservation</div><div class="v">${esc(o.etat_conservation) || '—'}</div></div>
@@ -3332,6 +3358,16 @@ function fieldHtml(col, label, type, val, opts, prefix){
       ? '<div class="field-hint">Astuce : **gras**, *italique*, un retour à la ligne suffit, et les liens (http://...) deviennent cliquables automatiquement.</div>'
       : '';
     return `<div class="form-field full"><label for="${prefix}${col}">${esc(label)}</label><textarea id="${prefix}${col}">${esc(v)}</textarea>${hint}</div>`;
+  }
+  if(col==='date_fabrication'){
+    // Champ texte libre plutôt qu'un sélecteur de date natif : la date de
+    // fabrication d'un objet ancien n'est souvent connue qu'au mois ou à
+    // l'année près, précision qu'un <input type="date"> (qui exige un jour)
+    // ne permet pas de saisir — voir formatPartialDate() pour l'affichage
+    // sur la fiche, qui s'adapte à la précision réellement saisie.
+    return `<div class="form-field"><label for="${prefix}${col}">${esc(label)}</label><input id="${prefix}${col}" type="text" placeholder="JJ/MM/AAAA, MM/AAAA ou AAAA" value="${esc(v)}">
+      <div class="field-hint">Selon ce que vous savez : jour précis (15/06/1944), mois (06/1944) ou juste l'année (1944).</div>
+    </div>`;
   }
   return `<div class="form-field"><label for="${prefix}${col}">${esc(label)}</label><input id="${prefix}${col}" type="${type}" value="${esc(v)}"></div>`;
 }
@@ -5490,7 +5526,7 @@ function showWishFiche(w){
           <div class="field-row"><div class="k">Taille</div><div class="v mono">${esc(w.taille) || '—'}</div></div>
           <div class="field-row"><div class="k">Fabricant</div><div class="v">${esc(w.fabricant) || '—'}</div></div>
           <div class="field-row"><div class="k">Détail tirage</div><div class="v">${esc(w.detail_tirage) || '—'}</div></div>
-          <div class="field-row"><div class="k">Date de fabrication</div><div class="v mono">${w.date_fabrication ? new Date(w.date_fabrication).toLocaleDateString('fr-FR') : '—'}</div></div>
+          <div class="field-row"><div class="k">Date de fabrication</div><div class="v mono">${formatPartialDate(w.date_fabrication) || '—'}</div></div>
           <div class="field-row"><div class="k">Type de variante</div><div class="v">${esc(w.type_variante) || '—'}</div></div>
           <div class="field-row"><div class="k">Authenticité</div><div class="v">${esc(w.authenticite) || '—'}</div></div>
           <div class="field-row"><div class="k">État de conservation</div><div class="v">${esc(w.etat_conservation) || '—'}</div></div>
