@@ -21,8 +21,8 @@ Scaleway : un faux backend (`mock_stub.js`) est injecté dans une copie de
   navigateur) avec restauration de la position de scroll, absence des
   informations privées pour un invité.
 - `test_admin.py` — connexion (bons/mauvais identifiants), apparition des
-  informations privées une fois connecté, création et édition d'un objet
-  via le formulaire, le select "Département" (liste fixe + saisie libre via
+  informations privées une fois connecté, création d'un objet (on reste
+  ensuite sur la page de modification) et édition via le formulaire, le select "Département" (liste fixe + saisie libre via
   "Autre"), déconnexion.
 - `test_wishlist.py` — l'onglet Souhaits est masqué pour un invité et
   visible pour l'admin, ajout de souhaits, ouverture d'une fiche de
@@ -35,6 +35,12 @@ Scaleway : un faux backend (`mock_stub.js`) est injecté dans une copie de
   la fonction serverless "photo-storage" — voir `__FAKE_BUCKET__` dans
   `mock_stub.js`) depuis le formulaire de modification de l'objet,
   affichage en lecture seule sur la fiche, puis suppression.
+- `test_parcours.py` — parcours utilisateur simplifié : bouton « Retour »
+  qui ramène à l'écran d'origine (catalogue, galerie ou dashboard), pied de
+  page sans « Supabase » pour un invité, bouton « Filtres », fiche en
+  lecture seule (seul « Modifier »), page de modification unique (photos :
+  ajout/suppression, sources, un seul titre « Sources », suppression de
+  l'objet), création en 3 étapes sans quitter la page.
 
 Chaque test vérifie aussi qu'aucune erreur JavaScript ne s'est produite
 pendant le parcours qu'il joue.
@@ -50,6 +56,7 @@ python3 tests/test_navigation.py
 python3 tests/test_admin.py
 python3 tests/test_wishlist.py
 python3 tests/test_sources.py
+python3 tests/test_parcours.py
 ```
 
 Chaque script affiche `[OK]` ou `[FAIL]` ligne par ligne, et se termine par
