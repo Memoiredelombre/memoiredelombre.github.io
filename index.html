@@ -671,6 +671,7 @@
      celle du compte admin dans la sidebar) à droite. */
   .foot-note-row{display:flex; align-items:center; justify-content:center; gap:18px; flex-wrap:wrap;}
   .foot-note-row .foot-status{display:inline-flex; align-items:center; gap:6px;}
+  .guest-mode .foot-status{display:none;}
   @media(max-width:600px){.foot-note-row{flex-direction:column; gap:8px;}}
 
   /* ---------- Galerie (grille façon Instagram) ----------
@@ -994,6 +995,10 @@
   .form-section{margin-bottom:22px;}
   .form-section h4{font-size:11.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-soft); margin:0 0 12px; padding-bottom:6px; border-bottom:1px solid var(--border); font-weight:700;}
   .form-section.locked h4{color:var(--private);}
+  .form-sources-wrap .state-msg{padding:16px 10px;}
+  .form-hint{font-size:12.5px; color:var(--ink-faint); margin:0 0 14px; line-height:1.5;}
+  .form-section.danger-zone{margin-top:34px; margin-bottom:0; padding-top:18px; border-top:1px dashed color-mix(in srgb, var(--danger) 40%, var(--border));}
+  .form-section.danger-zone h4{color:var(--danger); border-bottom:none; padding-bottom:0; margin-bottom:8px;}
   .form-grid{display:grid; grid-template-columns:1fr 1fr; gap:14px 20px;}
   @media(max-width:600px){.form-grid{grid-template-columns:1fr;}}
   .form-field.full{grid-column:1/-1;}
@@ -1118,7 +1123,7 @@ try{
       </button>
       <div class="topbar-search-wrap">
         <input type="text" id="searchInput" class="nav-search" placeholder="Rechercher un objet…">
-        <button class="btn btn-secondary" id="advSearchToggle" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg> <span class="btn-label">Recherche combinée</span></button>
+        <button class="btn btn-secondary" id="advSearchToggle" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg> <span class="btn-label">Filtres</span></button>
       </div>
       <div class="topbar-spacer"></div>
       <div class="header-actions">
@@ -2113,6 +2118,8 @@ async function loadAll(){
   const objParam = params.get('obj');
   if(objParam && ALL_OBJETS.some(o=>o.uid===objParam)){
     openFiche(objParam);
+    FICHE_ORIGIN = 'catalogue'; // lien partagé : le retour mène au catalogue, pas au dashboard sous-jacent
+    updateFicheOrigin();
   }
 }
 
@@ -2792,7 +2799,7 @@ function clearQuickDateFilter(){
 }
 
 // Navigue vers le catalogue avec un jeu de filtres précis, en repartant toujours d'un
-// état propre (comme le bouton "Recherche combinée"). Utilisée par tous les éléments
+// état propre (comme le bouton "Filtres"). Utilisée par tous les éléments
 // cliquables du dashboard (type, état, mouvement, authenticité, dates d'acquisition/estimation).
 // opts : { type, rarete, etat, mouvement, authenticite, dateFilter:{field,year,month,label} }
 function navigateToFilteredCatalogue(opts){
@@ -3001,9 +3008,33 @@ function renderFichePrivateBento(o){
 
 // Construit et affiche la fiche détaillée d'un objet (photos, champs publics,
 // et bloc privé séparé si admin).
+// Écran d'où l'on est arrivé sur la fiche (catalogue, galerie ou dashboard) :
+// le bouton « Retour » y ramène, au lieu de toujours renvoyer au catalogue.
+// Mis à jour uniquement quand la fiche s'ouvre depuis l'un de ces 3 écrans —
+// depuis le formulaire, une autre fiche (objets liés) ou l'historique du
+// navigateur, on garde la dernière origine connue.
+let FICHE_ORIGIN = 'catalogue';
+let FICHE_ORIGIN_SCROLL_Y = 0; // position de scroll de la galerie / du dashboard au moment de l'ouverture
+const FICHE_ORIGIN_LABELS = {
+  catalogue: '← Retour au catalogue',
+  galerie: '← Retour à la galerie',
+  dashboard: '← Retour au dashboard'
+};
+function updateFicheOrigin(){
+  const activeId = document.querySelector('.view.active')?.id || '';
+  const m = activeId.match(/^view-(dashboard|catalogue|galerie)$/);
+  if(m){
+    FICHE_ORIGIN = m[1];
+    FICHE_ORIGIN_SCROLL_Y = window.scrollY;
+  }
+  const btn = document.getElementById('backBtn');
+  if(btn) btn.textContent = FICHE_ORIGIN_LABELS[FICHE_ORIGIN] || FICHE_ORIGIN_LABELS.catalogue;
+}
+
 function showFiche(uid){
   const o = ALL_OBJETS.find(x=>x.uid===uid);
   if(!o) return;
+  updateFicheOrigin();
   CURRENT_FICHE_UID = uid;
   const c = document.getElementById('ficheContent');
   c.innerHTML = `
@@ -3045,7 +3076,7 @@ function showFiche(uid){
   if(IS_ADMIN){
     document.getElementById('editObjetBtn').addEventListener('click', ()=> openForm('edit', o));
   }
-  renderPhotoGallery(uid);
+  renderPhotoGallery(uid, 'galleryWrap', false);
   hydrateCachedImages(document.getElementById('ficheContent'));
   renderObjectMiniMap(uid, o.departement);
   loadAndRenderSources(uid, 'sourcesWrap', false);
@@ -3185,7 +3216,7 @@ function renderSourcesSection(uid, containerId, editable){
     </div>
   `).join('');
   el.innerHTML = `
-    <div class="extra-photos-label">Sources</div>
+    ${editable ? '' : '<div class="extra-photos-label">Sources</div>'}
     ${cards || '<div class="state-msg">Aucune source renseignée</div>'}
     ${editable ? `
       <button class="btn btn-secondary" id="addSourceToggleBtn" type="button" style="margin-top:10px;">+ Ajouter une source</button>
@@ -3362,9 +3393,15 @@ function buildOrderedPhotoList(uid){
 // Galerie photo d'un objet (recto/verso + photos supplémentaires)
 // Upload/suppression réservés à l'admin (IS_ADMIN)
 // ============================================================
-function renderPhotoGallery(uid){
-  const el = document.getElementById('galleryWrap');
+// editable=false (fiche) : consultation seule, clic = lightbox ; editable=true
+// (page de modification, admin) : ajout / remplacement / suppression de photos.
+// containerId permet d'avoir la même galerie à deux endroits (fiche et page
+// de modification restent toutes deux dans le DOM : les ids de tuiles sont
+// donc préfixés par le conteneur).
+function renderPhotoGallery(uid, containerId='galleryWrap', editable=false){
+  const el = document.getElementById(containerId);
   if(!el) return;
+  const canEdit = !!(editable && IS_ADMIN);
   const rawShots = PHOTOS_BY_OBJET[uid] || [];
   const seenIds = new Set();
   const shots = rawShots.filter(s => s.id && !seenIds.has(s.id) && seenIds.add(s.id));
@@ -3376,16 +3413,16 @@ function renderPhotoGallery(uid){
     if(photo){
       const url = scalewayPublicUrl(photo.storage_path);
       return `
-        <div class="photo-tile" id="zone-${uid}-${label}">
+        <div class="photo-tile" id="${containerId}-zone-${uid}-${label}">
           ${cachedImgTag(url, `alt="${label}" onclick="openLightboxFor('${uid}','${photo.id}')"`)}
           <span class="lbl-tag">${label}</span>
-          ${IS_ADMIN ? `<label class="edit-btn" title="Changer la photo">✎<input type="file" accept="image/*" style="display:none" onchange="handleUploadChange(event,'${uid}','${label}','${photo.id}')"></label>` : ''}
+          ${canEdit ? `<label class="edit-btn" title="Changer la photo">✎<input type="file" accept="image/*" style="display:none" onchange="handleUploadChange(event,'${uid}','${label}','${photo.id}')"></label>` : ''}
         </div>
       `;
     }
-    if(!IS_ADMIN) return `<div class="photo-tile empty" id="zone-${uid}-${label}">${IMG_ICON}<span class="lbl-tag">${label} — non disponible</span></div>`;
+    if(!canEdit) return `<div class="photo-tile empty" id="${containerId}-zone-${uid}-${label}">${IMG_ICON}<span class="lbl-tag">${label} — non disponible</span></div>`;
     return `
-      <label class="photo-tile empty" id="zone-${uid}-${label}">
+      <label class="photo-tile empty" id="${containerId}-zone-${uid}-${label}">
         ${IMG_ICON}<span class="lbl-tag">Ajouter — ${label}</span>
         <input type="file" accept="image/*" onchange="handleUploadChange(event,'${uid}','${label}',null)">
       </label>
@@ -3397,7 +3434,7 @@ function renderPhotoGallery(uid){
     return `
       <div class="photo-tile small">
         ${cachedImgTag(url, `alt="Photo" onclick="openLightboxFor('${uid}','${p.id}')"`, scalewayPublicUrl(p.storage_path))}
-        ${IS_ADMIN ? `<button class="del-btn" title="Supprimer" onclick="handleDeletePhoto('${p.id}','${p.storage_path}','${uid}')">×</button>` : ''}
+        ${canEdit ? `<button class="del-btn" title="Supprimer" onclick="handleDeletePhoto('${p.id}','${p.storage_path}','${uid}')">×</button>` : ''}
       </div>
     `;
   }).join('');
@@ -3407,11 +3444,11 @@ function renderPhotoGallery(uid){
       ${mainTile(recto,'Recto')}
       ${mainTile(verso,'Verso')}
     </div>
-    ${(autres.length > 0 || IS_ADMIN) ? `
+    ${(autres.length > 0 || canEdit) ? `
     <div class="extra-photos-label">Photos supplémentaires</div>
     <div class="extra-photos-row">
       ${extraTiles}
-      ${IS_ADMIN ? `
+      ${canEdit ? `
       <label class="photo-tile small empty">
         ${IMG_ICON}<span class="lbl-tag">Ajouter</span>
         <input type="file" accept="image/*" onchange="handleAddExtraPhoto(event,'${uid}')">
@@ -3421,6 +3458,13 @@ function renderPhotoGallery(uid){
     ` : ''}
   `;
   hydrateCachedImages(el);
+}
+
+// Rafraîchit la galerie d'un objet partout où elle est affichée : sur la
+// fiche (lecture seule) et sur la page de modification (éditable).
+function refreshPhotoGalleries(uid){
+  if(CURRENT_FICHE_UID === uid) renderPhotoGallery(uid, 'galleryWrap', false);
+  if(FORM_MODE === 'edit' && FORM_UID === uid) renderPhotoGallery(uid, 'galleryWrapForm', true);
 }
 
 let LIGHTBOX_PHOTOS = [];
@@ -3499,7 +3543,7 @@ async function handleDeletePhoto(photoId, storagePath, uid){
   try{ await deletePhotoWithThumb(storagePath); }catch(err){ showToast("Erreur de suppression : " + (err.detail || err.message), 'error'); return; }
   await sb.from('photos').delete().eq('id', photoId);
   await refreshPhotosCache();
-  renderPhotoGallery(uid);
+  refreshPhotoGalleries(uid);
 }
 
 let UPLOAD_IN_PROGRESS = false;
@@ -3518,7 +3562,7 @@ async function handleAddExtraPhoto(event, uid){
     const { error: insErr } = await sb.from('photos').insert({ objet_uid: uid, storage_path: path, label: 'Autre', position: nextPos });
     if(insErr){ showToast("Photo envoyée sur Scaleway, mais erreur d'enregistrement en base : " + insErr.message, 'error'); return; }
     await refreshPhotosCache();
-    renderPhotoGallery(uid);
+    refreshPhotoGalleries(uid);
   } finally {
     UPLOAD_IN_PROGRESS = false;
   }
@@ -3563,7 +3607,7 @@ async function handleUploadChange(event, uid, label, photoId){
     if(insErr){ showToast("Photo envoyée sur Scaleway, mais erreur d'enregistrement en base : " + insErr.message, 'error'); return; }
 
     await refreshPhotosCache();
-    renderPhotoGallery(uid);
+    refreshPhotoGalleries(uid);
   } finally {
     UPLOAD_IN_PROGRESS = false;
   }
@@ -3747,6 +3791,14 @@ function openForm(mode, objet){
   document.getElementById('formContent').innerHTML = `
     <div class="form-card">
       <h2>${mode==='edit' ? 'Modifier l’objet '+esc(o.id_public) : 'Nouvel objet'}</h2>
+      ${mode==='create' ? '<p class="form-hint">Renseignez les informations ci-dessous puis cliquez sur « Créer l’objet » : vous pourrez ensuite ajouter les photos et les sources sur cette même page.</p>' : ''}
+
+      ${mode==='edit' ? `
+      <div class="form-section">
+        <h4>Photos</h4>
+        <div id="galleryWrapForm"></div>
+      </div>
+      ` : ''}
 
       <div class="form-section">
         <h4>Général</h4>
@@ -3821,19 +3873,33 @@ function openForm(mode, objet){
         <button class="btn btn-primary" id="saveObjetBtn">${mode==='edit' ? 'Enregistrer les modifications' : "Créer l'objet"}</button>
         <span class="form-msg" id="formMsg"></span>
       </div>
+
+      ${mode==='edit' ? `
+      <div class="form-section danger-zone">
+        <h4>Zone dangereuse</h4>
+        <p class="form-hint">Supprime l’objet, ses photos et ses sources. Cette action est irréversible.</p>
+        <button class="btn btn-danger" id="deleteObjetBtn" type="button">Supprimer cet objet</button>
+      </div>
+      ` : ''}
     </div>
   `;
   document.getElementById('saveObjetBtn').addEventListener('click', saveObjet);
+  const delObjBtn = document.getElementById('deleteObjetBtn');
+  if(delObjBtn) delObjBtn.addEventListener('click', ()=>{ if(FORM_UID && window.handleDeleteObjet) window.handleDeleteObjet(FORM_UID); });
+  const formBack = document.getElementById('formBackBtn');
+  if(formBack) formBack.textContent = mode==='edit' ? '← Retour à la fiche' : '← Annuler';
 
   // "Type de tirage" et "Quantité" alimentent automatiquement "Détail tirage"
   // (texte libre), sauf si ce dernier contient déjà un texte personnalisé
   // qui ne correspond pas à ce que type+quantité auraient généré.
   wireTirageAutofillFor('f_');
 
-  // Les sources ne peuvent être gérées que pour un objet déjà existant (la
-  // table "sources" référence un objet_uid) — pas de section lors de la
-  // création : elle n'apparaît qu'après le premier enregistrement.
+  // Photos et sources ne peuvent être gérées que pour un objet déjà existant
+  // (les tables "photos" et "sources" référencent un objet_uid) — pas de
+  // section lors de la création : après « Créer l'objet », on reste sur cette
+  // même page, qui repasse en mode modification avec ces deux sections.
   if(mode==='edit'){
+    renderPhotoGallery(FORM_UID, 'galleryWrapForm', true);
     loadAndRenderSources(FORM_UID, 'sourcesWrapForm', true);
   }
 
@@ -3884,6 +3950,17 @@ async function saveObjet(){
   }
 
   await loadAll();
+  if(FORM_MODE==='create'){
+    // Création en 3 étapes : on reste sur la page de modification (désormais
+    // en mode « edit ») pour ajouter photos et sources tout de suite.
+    const created = ALL_OBJETS.find(x=>x.uid===resultUid);
+    if(created){
+      openForm('edit', created);
+      window.scrollTo({top: 0, behavior: 'instant'});
+      showToast('Objet créé — ajoutez maintenant les photos et les sources ci-dessous.');
+      return;
+    }
+  }
   openFiche(resultUid);
 }
 
@@ -3931,6 +4008,14 @@ window.addEventListener('resize', ()=>{
   if(document.getElementById('view-dashboard').classList.contains('active')) syncAcquisitionsHeightToProvenance();
 });
 document.getElementById('backBtn').addEventListener('click', ()=>{
+  if(FICHE_ORIGIN === 'galerie' || FICHE_ORIGIN === 'dashboard'){
+    switchView(FICHE_ORIGIN);
+    pushNav(FICHE_ORIGIN, null);
+    if(FICHE_ORIGIN === 'dashboard' && franceMap) setTimeout(()=> franceMap.invalidateSize(), 50);
+    const y = FICHE_ORIGIN_SCROLL_Y;
+    requestAnimationFrame(()=> window.scrollTo(0, y));
+    return;
+  }
   switchView('catalogue');
   pushNav('catalogue', null);
   document.querySelectorAll('.chip[data-filter]').forEach(c=>c.classList.toggle('active', c.dataset.filter===LAST_CAT_FILTER));
@@ -4001,7 +4086,7 @@ document.getElementById('sortSelect').addEventListener('change', e=>{
 
 // Recherche combinée : panneau repliable + 3 groupes de puces cliquables, combinables entre eux et avec les autres filtres.
 // Cliquer une puce l'active (et désactive ses voisines du même groupe) ; recliquer dessus l'éteint.
-// Bouton "Recherche combinée" : toujours déterministe, ne dépend jamais de l'état de
+// Bouton "Filtres" : toujours déterministe, ne dépend jamais de l'état de
 // navigation précédent (c'était la cause du bug "page vide" — le bouton changeait de
 // vue sans jamais réellement (re)dessiner la grille du catalogue).
 //  - Dashboard / Fiche → Catalogue, filtres réinitialisés, panneau ouvert, tous les objets affichés
@@ -4298,7 +4383,7 @@ refreshAuthState().then(()=> loadAll()).then(()=> initFranceMap());
       const text = document.getElementById('deleteConfirmText');
       const okBtn = document.getElementById('deleteConfirmOkBtn');
       const cancelBtn = document.getElementById('deleteConfirmCancelBtn');
-      text.innerHTML = `Supprimer définitivement <b>${esc(o.titre)}</b> (${esc(o.id_public)}) et toutes ses photos ?<span class="delete-confirm-warn">Cette action est irréversible.</span>`;
+      text.innerHTML = `Supprimer définitivement <b>${esc(o.titre)}</b> (${esc(o.id_public)}) avec ses photos et ses sources ?<span class="delete-confirm-warn">Cette action est irréversible.</span>`;
       modal.style.display = 'flex';
       function cleanup(result){
         modal.style.display = 'none';
@@ -4324,18 +4409,31 @@ refreshAuthState().then(()=> loadAll()).then(()=> initFranceMap());
     if(!o) return;
     if(!await askDeleteConfirmation(o)) return;
 
+    // Le bouton de suppression vit désormais sur la page de modification
+    // (zone « Supprimer l'objet »), plus sur la fiche.
     const delBtn = document.getElementById('deleteObjetBtn');
-    const editBtn = document.getElementById('editObjetBtn');
+    const editBtn = document.getElementById('saveObjetBtn');
     if(delBtn) delBtn.disabled = true;
     if(editBtn) editBtn.disabled = true;
 
     try{
       const shots = (PHOTOS_BY_OBJET[uid] || []).slice();
       for(const p of shots){
-        try{ await deleteFromScaleway(p.storage_path); }
+        try{ await deletePhotoWithThumb(p.storage_path); }
         catch(err){ /* on continue même si une photo échoue à se supprimer du stockage — la ligne DB est nettoyée juste après */ }
       }
       if(shots.length) await sb.from('photos').delete().eq('objet_uid', uid);
+
+      // Sources : documents joints sur Scaleway (best-effort) puis lignes en base.
+      try{
+        const { data: srcs } = await sb.from('sources').select('id, fichier_path').eq('objet_uid', uid);
+        for(const src of (srcs || [])){
+          if(src.fichier_path){
+            try{ await deleteFromScaleway(src.fichier_path); }catch(err){ /* idem photos */ }
+          }
+        }
+        if(srcs && srcs.length) await sb.from('sources').delete().eq('objet_uid', uid);
+      }catch(err){ /* une erreur ici ne doit pas empêcher la suppression de l'objet */ }
 
       const { error } = await sb.from('objets').delete().eq('uid', uid);
       if(error){
@@ -4356,22 +4454,8 @@ refreshAuthState().then(()=> loadAll()).then(()=> initFranceMap());
     pushNav('catalogue', null);
   }
 
-  function insertDeleteButton(){
-    const editBtn = document.getElementById('editObjetBtn');
-    if(!editBtn || document.getElementById('deleteObjetBtn')) return; // pas admin, ou déjà inséré pour ce rendu
-    const delBtn = document.createElement('button');
-    delBtn.type = 'button';
-    delBtn.id = 'deleteObjetBtn';
-    delBtn.className = 'btn btn-danger';
-    delBtn.textContent = 'Supprimer';
-    delBtn.addEventListener('click', () => {
-      if(CURRENT_FICHE_UID) handleDeleteObjet(CURRENT_FICHE_UID);
-    });
-    editBtn.insertAdjacentElement('beforebegin', delBtn);
-  }
-
-  insertDeleteButton();
-  new MutationObserver(insertDeleteButton).observe(ficheContent, { childList: true });
+  // Appelée depuis le bouton « Supprimer cet objet » de la page de modification.
+  window.handleDeleteObjet = handleDeleteObjet;
 })();
 
 // ============================================================
