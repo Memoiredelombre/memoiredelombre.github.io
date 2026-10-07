@@ -2946,11 +2946,11 @@ function renderFichePrivateBento(o){
   const hasValeur = o.valeur_estimee_actuelle !== null && o.valeur_estimee_actuelle !== undefined;
   const delta = valeur - prix;
   const deltaClass = delta > 0 ? 'pos' : (delta < 0 ? 'neg' : 'zero');
-  // Prix d'achat de 0 € (objet reçu en don) : pas de pourcentage possible
-  // (division par 0), on l'indique plutôt que d'afficher un tiret.
+  // Prix d'achat de 0 € (objet reçu en don) : division par 0 impossible, on
+  // affiche +100 % (toute la valeur estimée est de la plus-value).
   const deltaPct = (hasPrix && prix)
     ? `${delta >= 0 ? '+' : ''}${Math.round(delta/prix*100)}% sur le capital investi`
-    : ((hasPrix && hasValeur) ? 'Reçu gratuitement' : '—');
+    : ((hasPrix && hasValeur) ? `${delta > 0 ? '+100' : '0'}%` : '—');
   const maxVal = Math.max(1, prix, valeur);
 
   return `
@@ -4900,7 +4900,8 @@ refreshAuthState().then(()=> loadAll()).then(()=> initFranceMap());
 
     target.innerHTML = '<div class="best-pv-grid">' + candidats.map(({ o, delta }, i) => {
       const prix = Number(o.prix_achat);
-      const pct = prix > 0 ? Math.round(delta / prix * 100) : null; // pas de pourcentage possible sur un prix de 0 €
+      // Prix d'achat de 0 € (don) : division par 0 impossible, on affiche +100 % (toute la valeur est de la plus-value).
+      const pct = prix > 0 ? Math.round(delta / prix * 100) : (delta > 0 ? 100 : 0);
       const sign = delta >= 0 ? '+' : '';
       const shots = (typeof PHOTOS_BY_OBJET !== 'undefined' ? PHOTOS_BY_OBJET[o.uid] : null) || [];
       const recto = shots.find(s => s.label === 'Recto') || shots[0];
@@ -4916,7 +4917,7 @@ refreshAuthState().then(()=> loadAll()).then(()=> initFranceMap());
           <div class="best-pv-cap">
             <div class="best-pv-titre">${esc(o.titre)}</div>
             <div class="best-pv-delta ${delta < 0 ? 'neg' : ''}">${sign}${EUR(delta)}</div>
-            <div class="best-pv-sub">${pct === null ? 'Reçu gratuitement' : sign + pct + '%'}</div>
+            <div class="best-pv-sub">${sign}${pct}%</div>
           </div>
         </a>`;
     }).join('') + '</div>';
