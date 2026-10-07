@@ -111,6 +111,30 @@ async def main():
         await page.wait_for_timeout(700)
         check("l'admin voit le statut de connexion en pied de page", await page.locator(".foot-status").first.is_visible())
 
+        # ---- Top plus-value : un objet reçu en don (prix d'achat 0 €) compte ----
+        await page.evaluate("""() => {
+          ALL_OBJETS.forEach(o => { o.prix_achat = 10; o.valeur_estimee_actuelle = 20; });
+          const gift = ALL_OBJETS.find(o => o.uid === 'uid-003');
+          gift.prix_achat = 0; gift.valeur_estimee_actuelle = 90; gift.titre = 'Insigne reçu en don';
+          const unknown = ALL_OBJETS.find(o => o.uid === 'uid-004');
+          unknown.prix_achat = null; unknown.valeur_estimee_actuelle = 500;
+          switchView('dashboard'); pushNav('dashboard', null); renderDashboard();
+        }""")
+        await page.wait_for_timeout(300)
+        best = await page.locator("#bestPlusValue").inner_text()
+        check("le top plus-value retient l'objet reçu à 0 € (plus-value 90 €)", "Insigne reçu en don" in best and "90" in best, best)
+        check("un prix d'achat non renseigné reste exclu du top", "Objet test 4" not in best, best)
+        n_tiles = await page.locator("#bestPlusValue .best-pv-tile").count()
+        check("le top plus-value affiche 4 objets", n_tiles == 4, str(n_tiles))
+        first_title = await page.locator("#bestPlusValue .best-pv-tile").first.locator(".best-pv-titre").inner_text()
+        check("le n°1 est l'objet à la plus forte plus-value", first_title == "Insigne reçu en don", first_title)
+        check("l'objet reçu gratuitement l'indique", "gratuitement" in (await page.locator("#bestPlusValue .best-pv-tile").first.inner_text()).lower())
+        await page.locator("#bestPlusValue .best-pv-tile").nth(1).click()
+        await page.wait_for_timeout(300)
+        check("un clic sur une vignette du top ouvre la fiche", await active_view(page) == "view-fiche")
+        await page.click("#backBtn")
+        await page.wait_for_timeout(300)
+
         # ---- Fiche en lecture seule (même en admin) ----
         await page.evaluate("() => openFiche('uid-000')")
         await page.wait_for_timeout(400)
