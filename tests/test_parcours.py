@@ -128,19 +128,19 @@ async def main():
         check("le top plus-value affiche 4 objets", n_tiles == 4, str(n_tiles))
         first_title = await page.locator("#bestPlusValue .best-pv-tile").first.locator(".best-pv-titre").inner_text()
         check("le n°1 est l'objet à la plus forte plus-value", first_title == "Insigne reçu en don", first_title)
-        check("l'objet reçu gratuitement l'indique", "gratuitement" in (await page.locator("#bestPlusValue .best-pv-tile").first.inner_text()).lower())
+        check("l'objet reçu à 0 € affiche +100 % dans le top", "+100%" in (await page.locator("#bestPlusValue .best-pv-tile").first.inner_text()))
         await page.locator("#bestPlusValue .best-pv-tile").nth(1).click()
         await page.wait_for_timeout(300)
         check("un clic sur une vignette du top ouvre la fiche", await active_view(page) == "view-fiche")
         await page.click("#backBtn")
         await page.wait_for_timeout(300)
 
-        # Fiche de l'objet reçu à 0 € : « Reçu gratuitement » à la place du pourcentage
+        # Fiche de l'objet reçu à 0 € : +100 % à la place du pourcentage
         await page.evaluate("() => openFiche('uid-003')")
         await page.wait_for_timeout(300)
         hero = await page.locator("#ficheContent .mont-hero-card.accent").inner_text()
-        check("fiche d'un objet à 0 € : « Reçu gratuitement » s'affiche sous la plus-value",
-              "gratuitement" in hero.lower() and "90" in hero, hero)
+        check("fiche d'un objet à 0 € : +100 % s'affiche sous la plus-value",
+              "+100%" in hero and "90" in hero, hero)
         await page.evaluate("() => openFiche('uid-005')")
         await page.wait_for_timeout(300)
         hero = await page.locator("#ficheContent .mont-hero-card.accent").inner_text()
