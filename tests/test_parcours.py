@@ -135,6 +135,17 @@ async def main():
         await page.click("#backBtn")
         await page.wait_for_timeout(300)
 
+        # Fiche de l'objet reçu à 0 € : « Reçu gratuitement » à la place du pourcentage
+        await page.evaluate("() => openFiche('uid-003')")
+        await page.wait_for_timeout(300)
+        hero = await page.locator("#ficheContent .mont-hero-card.accent").inner_text()
+        check("fiche d'un objet à 0 € : « Reçu gratuitement » s'affiche sous la plus-value",
+              "gratuitement" in hero.lower() and "90" in hero, hero)
+        await page.evaluate("() => openFiche('uid-005')")
+        await page.wait_for_timeout(300)
+        hero = await page.locator("#ficheContent .mont-hero-card.accent").inner_text()
+        check("fiche d'un objet payé : le pourcentage sur le capital investi reste affiché", "%" in hero, hero)
+
         # ---- Fiche en lecture seule (même en admin) ----
         await page.evaluate("() => openFiche('uid-000')")
         await page.wait_for_timeout(400)
