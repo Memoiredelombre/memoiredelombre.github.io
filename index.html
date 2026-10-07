@@ -2946,7 +2946,11 @@ function renderFichePrivateBento(o){
   const hasValeur = o.valeur_estimee_actuelle !== null && o.valeur_estimee_actuelle !== undefined;
   const delta = valeur - prix;
   const deltaClass = delta > 0 ? 'pos' : (delta < 0 ? 'neg' : 'zero');
-  const deltaPct = (hasPrix && prix) ? `${delta >= 0 ? '+' : ''}${Math.round(delta/prix*100)}% sur le capital investi` : '—';
+  // Prix d'achat de 0 € (objet reçu en don) : pas de pourcentage possible
+  // (division par 0), on l'indique plutôt que d'afficher un tiret.
+  const deltaPct = (hasPrix && prix)
+    ? `${delta >= 0 ? '+' : ''}${Math.round(delta/prix*100)}% sur le capital investi`
+    : ((hasPrix && hasValeur) ? 'Reçu gratuitement' : '—');
   const maxVal = Math.max(1, prix, valeur);
 
   return `
