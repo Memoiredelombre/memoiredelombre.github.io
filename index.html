@@ -632,31 +632,25 @@
   @media(max-width:900px){.mont-trio-row{grid-template-columns:1fr 1fr;}}
   @media(max-width:560px){.mont-trio-row{grid-template-columns:1fr;}}
 
+  /* Top plus-value : grille 2 × 2 des 4 meilleures plus-values (photo + rang + bandeau). */
   #bestPlusValue{overflow:hidden !important;}
-  .mont-chart-card.best-pv-wrap{cursor:pointer; transition:border-color .15s ease, transform .15s ease;}
-  .mont-chart-card.best-pv-wrap:hover{border-color:var(--private); transform:translateY(-1px);}
-  .best-pv-card{display:flex; flex-direction:column; height:100%; text-decoration:none; color:inherit; cursor:pointer;}
-  .best-pv-photo{width:100%; height:145px; border-radius:var(--r-sm); background:var(--surface-2); flex:none; overflow:hidden; display:flex; align-items:center; justify-content:center; color:var(--ink-faint);}
-  .best-pv-photo img{width:100%; height:100%; object-fit:cover;}
-  .best-pv-photo svg{width:32px; height:32px; opacity:.4;}
-  .best-pv-body{flex:1; min-height:0; display:flex; flex-direction:column; justify-content:space-between; margin-top:10px;}
-  .best-pv-titre{font-family:'Space Grotesk',sans-serif; font-size:14.5px; font-weight:500; line-height:1.3; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
-  .best-pv-type{font-size:10px; font-weight:600; color:var(--accent); text-transform:uppercase; letter-spacing:.05em; margin-top:2px;}
-  .best-pv-stats-row{display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:10px;}
-  .best-pv-substat{min-width:0; background:var(--surface-2); border:1px solid transparent; border-radius:8px; padding:8px 9px;}
-  .best-pv-substat.accent{background:color-mix(in srgb, var(--private) 10%, var(--surface)); border-color:color-mix(in srgb, var(--private) 32%, var(--border));}
-  .best-pv-substat .label{font-size:9.5px; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.04em; overflow-wrap:break-word;}
-  .best-pv-substat .value{font-family:'IBM Plex Mono',monospace; font-size:12px; font-weight:700; color:var(--ink); margin-top:3px; overflow-wrap:break-word;}
-  .best-pv-substat.accent .value{color:var(--private);}
-  .best-pv-substat .sub{font-size:9px; color:var(--ink-soft); margin-top:2px; font-family:'IBM Plex Mono',monospace;}
-  .best-pv-substat.accent .sub{color:var(--private); opacity:.85;}
+  .best-pv-grid{display:grid; grid-template-columns:1fr 1fr; grid-template-rows:1fr 1fr; gap:10px; height:100%;}
+  .best-pv-tile{position:relative; display:flex; align-items:center; justify-content:center; min-width:0; min-height:0; border-radius:12px; overflow:hidden; background:var(--surface-2); color:var(--ink-faint); text-decoration:none; cursor:pointer; border:1px solid transparent; transition:border-color .15s ease, transform .15s ease;}
+  .best-pv-tile:hover{border-color:var(--private); transform:translateY(-1px);}
+  .best-pv-tile img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover;}
+  .best-pv-tile > svg{width:30%; max-width:48px; opacity:.35;}
+  .best-pv-rank{position:absolute; top:7px; left:7px; z-index:1; background:rgba(0,0,0,.6); color:#fff; font-family:'IBM Plex Mono',monospace; font-size:10px; font-weight:700; border-radius:6px; padding:2px 6px;}
+  .best-pv-tile:first-child .best-pv-rank{background:var(--private); color:#111;}
+  .best-pv-cap{position:absolute; left:0; right:0; bottom:0; z-index:1; padding:20px 9px 7px; background:linear-gradient(transparent, rgba(0,0,0,.82)); color:#fff;}
+  .best-pv-titre{font-family:'Space Grotesk',sans-serif; font-size:11.5px; font-weight:500; line-height:1.25; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .best-pv-delta{font-family:'IBM Plex Mono',monospace; font-size:13px; font-weight:700; color:#f3c76b; margin-top:1px;}
+  .best-pv-delta.neg{color:#ff9a8a;}
+  .best-pv-sub{font-size:9.5px; color:rgba(255,255,255,.72); font-family:'IBM Plex Mono',monospace;}
   @media(max-width:560px){
-    .best-pv-stats-row{grid-template-columns:1fr 1fr;}
-    .best-pv-substat.accent{grid-column:1 / -1;}
     .mont-trio-row .mont-chart-card.best-pv-wrap{height:auto;}
     .mont-trio-row .mont-chart-card.best-pv-wrap > div:last-child{overflow:visible;}
     #bestPlusValue{overflow:visible !important;}
-    .best-pv-wrap .best-pv-card{height:auto;}
+    .best-pv-grid{grid-template-columns:1fr; grid-template-rows:none; grid-auto-rows:150px; height:auto;}
   }
 
   .france-map{height:340px; border-radius:var(--r-md); overflow:hidden; background:var(--surface-2); position:relative; isolation:isolate; border:1px solid var(--border);}
@@ -4885,56 +4879,51 @@ refreshAuthState().then(()=> loadAll()).then(()=> initFranceMap());
   function renderMeilleurePlusValue(){
     if(typeof ALL_OBJETS === 'undefined') return;
 
+    // Un prix d'achat de 0 € (objet reçu en don) est un vrai prix : l'objet
+    // compte, sa plus-value est alors toute sa valeur estimée. Seul un prix
+    // non renseigné (null / vide) exclut l'objet du classement.
+    const renseigne = v => v !== null && v !== undefined && v !== '';
     const candidats = ALL_OBJETS
-      .filter(o => Number(o.prix_achat) > 0 && o.valeur_estimee_actuelle !== null && o.valeur_estimee_actuelle !== undefined)
+      .filter(o => renseigne(o.prix_achat) && renseigne(o.valeur_estimee_actuelle))
       .map(o => ({ o, delta: Number(o.valeur_estimee_actuelle) - Number(o.prix_achat) }))
-      .sort((a,b) => b.delta - a.delta);
+      .sort((a,b) => b.delta - a.delta)
+      .slice(0, 4);
 
     if(candidats.length === 0){
       target.innerHTML = '<div class="state-msg">Aucune donnée</div>';
       return;
     }
 
-    const { o, delta } = candidats[0];
-    const prix = Number(o.prix_achat);
-    const valeur = Number(o.valeur_estimee_actuelle);
-    const pct = Math.round(delta / prix * 100);
-
-    const shots = (typeof PHOTOS_BY_OBJET !== 'undefined' ? PHOTOS_BY_OBJET[o.uid] : null) || [];
-    const recto = shots.find(s => s.label === 'Recto') || shots[0];
-    let thumb = (typeof IMG_ICON !== 'undefined') ? IMG_ICON : '';
-    if(recto && typeof cachedImgTag === 'function' && typeof scalewayPublicUrl === 'function'){
-      const thumbUrl = (typeof scalewayThumbUrl === 'function') ? scalewayThumbUrl(recto.storage_path) : scalewayPublicUrl(recto.storage_path);
-      thumb = cachedImgTag(thumbUrl, 'alt=""', scalewayPublicUrl(recto.storage_path));
-    }
-
-    const sign = delta >= 0 ? '+' : '';
-
-    target.innerHTML = `
-      <a class="best-pv-card" href="?obj=${o.uid}" data-uid="${o.uid}">
-        <div class="best-pv-photo">${thumb}</div>
-        <div class="best-pv-body">
-          <div>
-            <div class="best-pv-titre" title="${esc(o.titre)}">${esc(o.titre)}</div>
-            ${o.type_objet ? `<div class="best-pv-type">${esc(o.type_objet)}</div>` : ''}
+    target.innerHTML = '<div class="best-pv-grid">' + candidats.map(({ o, delta }, i) => {
+      const prix = Number(o.prix_achat);
+      const pct = prix > 0 ? Math.round(delta / prix * 100) : null; // pas de pourcentage possible sur un prix de 0 €
+      const sign = delta >= 0 ? '+' : '';
+      const shots = (typeof PHOTOS_BY_OBJET !== 'undefined' ? PHOTOS_BY_OBJET[o.uid] : null) || [];
+      const recto = shots.find(s => s.label === 'Recto') || shots[0];
+      let thumb = (typeof IMG_ICON !== 'undefined') ? IMG_ICON : '';
+      if(recto && typeof cachedImgTag === 'function' && typeof scalewayPublicUrl === 'function'){
+        const thumbUrl = (typeof scalewayThumbUrl === 'function') ? scalewayThumbUrl(recto.storage_path) : scalewayPublicUrl(recto.storage_path);
+        thumb = cachedImgTag(thumbUrl, 'alt=""', scalewayPublicUrl(recto.storage_path));
+      }
+      return `
+        <a class="best-pv-tile" href="?obj=${o.uid}" data-uid="${o.uid}" title="${esc(o.titre)} — ${EUR(prix)} → ${EUR(Number(o.valeur_estimee_actuelle))}">
+          ${thumb}
+          <span class="best-pv-rank">${i + 1}</span>
+          <div class="best-pv-cap">
+            <div class="best-pv-titre">${esc(o.titre)}</div>
+            <div class="best-pv-delta ${delta < 0 ? 'neg' : ''}">${sign}${EUR(delta)}</div>
+            <div class="best-pv-sub">${pct === null ? 'Reçu gratuitement' : sign + pct + '%'}</div>
           </div>
-          <div class="best-pv-stats-row">
-            <div class="best-pv-substat"><div class="label">Prix d'achat</div><div class="value">${EUR(prix)}</div></div>
-            <div class="best-pv-substat"><div class="label">Valeur estimée</div><div class="value">${EUR(valeur)}</div></div>
-            <div class="best-pv-substat accent"><div class="label">Plus-value</div><div class="value">${sign}${EUR(delta)}</div><div class="sub">${sign}${pct}%</div></div>
-          </div>
-        </div>
-      </a>
-    `;
+        </a>`;
+    }).join('') + '</div>';
 
-    const link = target.querySelector('.best-pv-card');
-    if(link){
+    target.querySelectorAll('.best-pv-tile').forEach(link => {
       link.addEventListener('click', (e) => {
         if(e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return;
         e.preventDefault();
         if(typeof openFiche === 'function') openFiche(link.dataset.uid);
       });
-    }
+    });
     if(typeof hydrateCachedImages === 'function') hydrateCachedImages(target);
   }
 
