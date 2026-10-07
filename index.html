@@ -3791,7 +3791,6 @@ function openForm(mode, objet){
   document.getElementById('formContent').innerHTML = `
     <div class="form-card">
       <h2>${mode==='edit' ? 'Modifier l’objet '+esc(o.id_public) : 'Nouvel objet'}</h2>
-      ${mode==='create' ? '<p class="form-hint">Renseignez les informations, ajoutez dès maintenant les photos et les sources si vous les avez, puis cliquez sur « Créer l’objet » : tout est enregistré en une seule fois.</p>' : ''}
 
       <div class="form-section">
         <h4>Photos</h4>
