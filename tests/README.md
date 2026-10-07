@@ -21,9 +21,9 @@ Scaleway : un faux backend (`mock_stub.js`) est injecté dans une copie de
   navigateur) avec restauration de la position de scroll, absence des
   informations privées pour un invité.
 - `test_admin.py` — connexion (bons/mauvais identifiants), apparition des
-  informations privées une fois connecté, création d'un objet (on reste
-  ensuite sur la page de modification) et édition via le formulaire, le select "Département" (liste fixe + saisie libre via
-  "Autre"), déconnexion.
+  informations privées une fois connecté, création d'un objet (arrivée sur
+  sa fiche) et édition via le formulaire, le select "Département" (liste
+  fixe + saisie libre via "Autre"), déconnexion.
 - `test_wishlist.py` — l'onglet Souhaits est masqué pour un invité et
   visible pour l'admin, ajout de souhaits, ouverture d'une fiche de
   souhait avec restauration du scroll, conversion d'un souhait en objet du
@@ -40,7 +40,7 @@ Scaleway : un faux backend (`mock_stub.js`) est injecté dans une copie de
   page sans « Supabase » pour un invité, bouton « Filtres », fiche en
   lecture seule (seul « Modifier »), page de modification unique (photos :
   ajout/suppression, sources, un seul titre « Sources », suppression de
-  l'objet), création en 3 étapes sans quitter la page.
+  l'objet), création avec photos et sources en une seule fois.
 
 Chaque test vérifie aussi qu'aucune erreur JavaScript ne s'est produite
 pendant le parcours qu'il joue.

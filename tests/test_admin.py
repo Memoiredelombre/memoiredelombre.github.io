@@ -83,14 +83,10 @@ async def main():
             btn_during,
         )
         await page.wait_for_timeout(600)
-        # Création en 3 étapes : on reste sur la page de modification (qui
-        # passe en mode "edit", avec les sections Photos et Sources).
+        # Photos et sources préparées dans le formulaire sont envoyées avec
+        # la création : une fois tout enregistré, on arrive sur la fiche.
         active_view = await page.evaluate("() => document.querySelector('.view.active')?.id")
-        check("après « Créer », on reste sur la page de modification", active_view == "view-form")
-        form_mode_after_create = await page.evaluate("() => FORM_MODE")
-        check("la page de modification est passée en mode édition", form_mode_after_create == "edit")
-        check("les sections Photos et Sources sont maintenant disponibles",
-              await page.locator("#galleryWrapForm").count() == 1 and await page.locator("#sourcesWrapForm").count() == 1)
+        check("après « Créer », on atterrit sur la fiche du nouvel objet", active_view == "view-fiche")
 
         # ---- Formulaire : édition d'un objet existant ----
         # (par uid plutôt que ALL_OBJETS[0] : la création d'un objet juste

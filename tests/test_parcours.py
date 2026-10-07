@@ -159,32 +159,57 @@ async def main():
         await page.wait_for_timeout(300)
         check("« Retour à la fiche » revient sur la fiche", await active_view(page) == "view-fiche")
 
-        # ---- Création en 3 étapes puis suppression depuis la page de modification ----
+        # ---- Création : champs + photos + sources en une seule fois ----
         await page.evaluate("() => openForm('create', null)")
         await page.wait_for_timeout(300)
-        check("pas de section Photos/Sources/Suppression avant la création",
-              await page.locator("#galleryWrapForm, #sourcesWrapForm, #deleteObjetBtn").count() == 0)
+        check("la page de création propose déjà Photos et Sources",
+              await page.locator("#galleryWrapForm").count() == 1 and await page.locator("#sourcesWrapForm").count() == 1)
+        check("pas de zone de suppression en création", await page.locator("#deleteObjetBtn").count() == 0)
         check("bouton retour = « Annuler » en création",
               "annuler" in (await page.locator("#formBackBtn").inner_text()).lower())
         await page.fill("#f_titre", "Objet jetable du test")
         await page.select_option("#f_type_objet", index=1)
-        await page.click("#saveObjetBtn")
-        await page.wait_for_timeout(800)
-        check("après « Créer », on est sur la page de modification avec Photos + Sources",
-              await active_view(page) == "view-form" and await page.locator("#galleryWrapForm").count() == 1
-              and await page.locator("#sourcesWrapForm").count() == 1)
-        new_uid = await page.evaluate("() => FORM_UID")
-        check("le nouvel objet existe en base", new_uid is not None and await page.evaluate(
-            "(u) => ALL_OBJETS.some(o => o.uid === u)", new_uid))
 
-        # Ajoute une source à l'objet tout juste créé, puis supprime l'objet
+        # photos : recto + 2 photos supplémentaires, prévisualisées avant envoi
+        await page.set_input_files("#galleryWrapForm .photo-upload-row label:nth-child(1) input", png)
+        await page.wait_for_timeout(200)
+        await page.set_input_files("#galleryWrapForm .extra-photos-row input[type=file]", [png, png])
+        await page.wait_for_timeout(300)
+        check("le recto choisi est prévisualisé", await page.locator("#galleryWrapForm .photo-upload-row .photo-tile img").count() == 1)
+        check("les 2 photos supplémentaires sont prévisualisées", await page.locator("#galleryWrapForm .extra-photos-row .photo-tile img").count() == 2)
+        await page.locator("#galleryWrapForm .extra-photos-row .del-btn").first.click()
+        await page.wait_for_timeout(200)
+        check("on peut retirer une photo avant la création", await page.locator("#galleryWrapForm .extra-photos-row .photo-tile img").count() == 1)
+
+        # source préparée (avec document joint)
+        with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
+            tmp.write(b"%PDF-1.4 test\n")
+            pdf = tmp.name
         await page.click("#addSourceToggleBtn")
         await page.fill("#srcTitre", "Source du test")
+        await page.set_input_files("#srcFichier", pdf)
         await page.click("#saveSourceBtn")
-        await page.wait_for_timeout(500)
-        check("une source peut être ajoutée juste après la création",
+        await page.wait_for_timeout(300)
+        check("la source préparée apparaît dans la liste",
               await page.locator("#sourcesWrapForm .source-card").count() == 1)
+        nothing_yet = await page.evaluate("() => window.__FAKE_SOURCES__.length")
+        check("rien n'est envoyé avant « Créer l'objet »", nothing_yet == 0, str(nothing_yet))
 
+        await page.click("#saveObjetBtn")
+        await page.wait_for_timeout(2500)
+        check("après « Créer », on arrive sur la fiche", await active_view(page) == "view-fiche")
+        new_uid = await page.evaluate("() => CURRENT_FICHE_UID")
+        photos = await page.evaluate("(u) => (PHOTOS_BY_OBJET[u]||[]).map(p => p.label).sort().join(',')", new_uid)
+        check("recto + 1 photo supplémentaire enregistrés avec l'objet", photos == "Autre,Recto", photos)
+        sources = await page.evaluate("(u) => window.__FAKE_SOURCES__.filter(s => s.objet_uid === u).length", new_uid)
+        check("la source est enregistrée avec l'objet", sources == 1, str(sources))
+        check("le document joint est dans le stockage", await page.evaluate(
+            "() => Object.keys(window.__FAKE_BUCKET__).some(k => k.startsWith('sources/'))"))
+        check("la fiche affiche la source", await page.locator("#sourcesWrap .source-card").count() == 1)
+
+        # ---- Suppression depuis la page de modification ----
+        await page.click("#editObjetBtn")
+        await page.wait_for_timeout(400)
         await page.click("#deleteObjetBtn")
         await page.wait_for_timeout(300)
         await page.click("#deleteConfirmOkBtn")
@@ -192,7 +217,7 @@ async def main():
         gone = not await page.evaluate("(u) => ALL_OBJETS.some(o => o.uid === u)", new_uid)
         check("la suppression depuis la page de modification retire l'objet", gone)
         check("on retombe sur le catalogue après suppression", await active_view(page) == "view-catalogue")
-        orphan_sources = await page.evaluate("(u) => (window.__FAKE_SOURCES__||[]).filter(s => s.objet_uid === u).length", new_uid)
+        orphan_sources = await page.evaluate("(u) => window.__FAKE_SOURCES__.filter(s => s.objet_uid === u).length", new_uid)
         check("les sources de l'objet supprimé sont supprimées aussi", orphan_sources == 0, str(orphan_sources))
 
         check("aucune erreur JS pendant le parcours", len(errors) == 0, str(errors))
