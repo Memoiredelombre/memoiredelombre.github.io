@@ -3791,14 +3791,12 @@ function openForm(mode, objet){
   document.getElementById('formContent').innerHTML = `
     <div class="form-card">
       <h2>${mode==='edit' ? 'Modifier l’objet '+esc(o.id_public) : 'Nouvel objet'}</h2>
-      ${mode==='create' ? '<p class="form-hint">Renseignez les informations ci-dessous puis cliquez sur « Créer l’objet » : vous pourrez ensuite ajouter les photos et les sources sur cette même page.</p>' : ''}
+      ${mode==='create' ? '<p class="form-hint">Renseignez les informations, ajoutez dès maintenant les photos et les sources si vous les avez, puis cliquez sur « Créer l’objet » : tout est enregistré en une seule fois.</p>' : ''}
 
-      ${mode==='edit' ? `
       <div class="form-section">
         <h4>Photos</h4>
         <div id="galleryWrapForm"></div>
       </div>
-      ` : ''}
 
       <div class="form-section">
         <h4>Général</h4>
@@ -3862,12 +3860,10 @@ function openForm(mode, objet){
         </div>
       </div>
 
-      ${mode==='edit' ? `
       <div class="form-section">
         <h4>Sources</h4>
         <div id="sourcesWrapForm" class="sources-wrap form-sources-wrap"></div>
       </div>
-      ` : ''}
 
       <div class="form-actions">
         <button class="btn btn-primary" id="saveObjetBtn">${mode==='edit' ? 'Enregistrer les modifications' : "Créer l'objet"}</button>
@@ -3894,13 +3890,18 @@ function openForm(mode, objet){
   // qui ne correspond pas à ce que type+quantité auraient généré.
   wireTirageAutofillFor('f_');
 
-  // Photos et sources ne peuvent être gérées que pour un objet déjà existant
-  // (les tables "photos" et "sources" référencent un objet_uid) — pas de
-  // section lors de la création : après « Créer l'objet », on reste sur cette
-  // même page, qui repasse en mode modification avec ces deux sections.
+  // Les tables "photos" et "sources" référencent un objet_uid : en modification
+  // on agit directement dessus ; en création, on prépare les éléments en
+  // mémoire et on les envoie une fois l'objet créé.
   if(mode==='edit'){
     renderPhotoGallery(FORM_UID, 'galleryWrapForm', true);
     loadAndRenderSources(FORM_UID, 'sourcesWrapForm', true);
+  } else {
+    // Création : photos et sources sont préparées en mémoire (PENDING_NEW) et
+    // envoyées juste après l'insertion de l'objet, dans saveObjet().
+    PENDING_NEW = { photos: { Recto: null, Verso: null, extras: [] }, sources: [] };
+    renderPendingPhotos();
+    renderPendingSources();
   }
 
   switchView('form');
@@ -3949,19 +3950,195 @@ async function saveObjet(){
     resultUid = data.uid;
   }
 
-  await loadAll();
   if(FORM_MODE==='create'){
-    // Création en 3 étapes : on reste sur la page de modification (désormais
-    // en mode « edit ») pour ajouter photos et sources tout de suite.
+    if(PENDING_NEW.photos.Recto || PENDING_NEW.photos.Verso || PENDING_NEW.photos.extras.length || PENDING_NEW.sources.length){
+      btn.textContent = 'Envoi des photos et sources…';
+    }
+    const failures = await flushPendingNew(resultUid);
+    await loadAll();
     const created = ALL_OBJETS.find(x=>x.uid===resultUid);
-    if(created){
+    if(failures.length && created){
+      // L'objet existe mais certains envois ont échoué : on reste sur la page
+      // de modification (mode « edit ») pour les refaire sans rien perdre.
       openForm('edit', created);
       window.scrollTo({top: 0, behavior: 'instant'});
-      showToast('Objet créé — ajoutez maintenant les photos et les sources ci-dessous.');
+      showToast("Objet créé, mais " + failures.length + " envoi(s) ont échoué (" + failures.join(', ') + "). Ajoutez-les à nouveau ci-dessous.", 'error');
       return;
     }
+    openFiche(resultUid);
+    return;
   }
+  await loadAll();
   openFiche(resultUid);
+}
+
+// ------------------------------------------------------------
+// Création d'un objet : photos et sources préparées avant l'insertion
+// ------------------------------------------------------------
+let PENDING_NEW = { photos: { Recto: null, Verso: null, extras: [] }, sources: [] };
+let PENDING_PREVIEW_URLS = [];
+
+function pendingPreview(file){
+  const u = URL.createObjectURL(file);
+  PENDING_PREVIEW_URLS.push(u);
+  return u;
+}
+
+function renderPendingPhotos(){
+  const el = document.getElementById('galleryWrapForm');
+  if(!el) return;
+  PENDING_PREVIEW_URLS.forEach(u => URL.revokeObjectURL(u));
+  PENDING_PREVIEW_URLS = [];
+  const main = (label) => {
+    const f = PENDING_NEW.photos[label];
+    if(f){
+      return `
+        <div class="photo-tile" id="galleryWrapForm-pending-${label}">
+          <img src="${pendingPreview(f)}" alt="${label}">
+          <span class="lbl-tag">${label}</span>
+          <button class="del-btn" type="button" title="Retirer cette photo" onclick="removePendingPhoto('${label}')">×</button>
+        </div>`;
+    }
+    return `
+      <label class="photo-tile empty" id="galleryWrapForm-pending-${label}">
+        ${IMG_ICON}<span class="lbl-tag">Ajouter — ${label}</span>
+        <input type="file" accept="image/*" onchange="setPendingPhoto(event,'${label}')">
+      </label>`;
+  };
+  const extras = PENDING_NEW.photos.extras.map((f,i)=>`
+    <div class="photo-tile small">
+      <img src="${pendingPreview(f)}" alt="Photo">
+      <button class="del-btn" type="button" title="Retirer cette photo" onclick="removePendingPhoto('extra',${i})">×</button>
+    </div>`).join('');
+  el.innerHTML = `
+    <div class="photo-upload-row">${main('Recto')}${main('Verso')}</div>
+    <div class="extra-photos-label">Photos supplémentaires</div>
+    <div class="extra-photos-row">
+      ${extras}
+      <label class="photo-tile small empty">
+        ${IMG_ICON}<span class="lbl-tag">Ajouter</span>
+        <input type="file" accept="image/*" multiple onchange="setPendingPhoto(event,'extra')">
+      </label>
+    </div>`;
+}
+
+function setPendingPhoto(event, label){
+  const files = Array.from(event.target.files || []);
+  if(!files.length) return;
+  if(label === 'extra') PENDING_NEW.photos.extras.push(...files);
+  else PENDING_NEW.photos[label] = files[0];
+  renderPendingPhotos();
+}
+
+function removePendingPhoto(label, index){
+  if(label === 'extra') PENDING_NEW.photos.extras.splice(index, 1);
+  else PENDING_NEW.photos[label] = null;
+  renderPendingPhotos();
+}
+
+function renderPendingSources(){
+  const el = document.getElementById('sourcesWrapForm');
+  if(!el) return;
+  const cards = PENDING_NEW.sources.map((src,i)=>`
+    <div class="source-card">
+      <div class="source-card-top">
+        <span class="source-type-badge">${esc(src.type_source) || 'Source'}</span>
+        <div class="source-card-actions">
+          <button class="source-del-btn" type="button" title="Retirer cette source" onclick="removePendingSource(${i})"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+        </div>
+      </div>
+      <div class="source-view">
+        <div class="source-titre">${esc(src.titre_source)}</div>
+        ${src.auteur_editeur ? `<div class="source-auteur">${esc(src.auteur_editeur)}</div>` : ''}
+        ${src.note ? `<div class="source-note rich-text">${formatRichText(src.note)}</div>` : ''}
+        <div class="source-links">
+          ${src.lien ? `<span>Lien : ${esc(src.lien)}</span>` : ''}
+          ${src.file ? `<span>Document : ${esc(src.file.name)}</span>` : ''}
+        </div>
+      </div>
+    </div>`).join('');
+  el.innerHTML = `
+    ${cards || '<div class="state-msg">Aucune source renseignée</div>'}
+    <button class="btn btn-secondary" id="addSourceToggleBtn" type="button" style="margin-top:10px;">+ Ajouter une source</button>
+    <div class="source-form" id="addSourceForm" style="display:none;">
+      <div class="form-grid">
+        <div class="form-field"><label for="srcType">Type</label>
+          <select id="srcType">${TYPE_SOURCE_OPTIONS.map(t=>`<option value="${esc(t)}">${esc(t)}</option>`).join('')}</select>
+        </div>
+        <div class="form-field"><label for="srcTitre">Titre</label><input id="srcTitre" type="text"></div>
+        <div class="form-field"><label for="srcAuteur">Auteur / éditeur</label><input id="srcAuteur" type="text"></div>
+        <div class="form-field"><label for="srcLien">Lien</label><input id="srcLien" type="text" placeholder="https://…"></div>
+        <div class="form-field full"><label for="srcNote">Note</label><textarea id="srcNote"></textarea></div>
+        <div class="form-field full"><label for="srcFichier">Document joint (PDF…, 20 Mo max)</label><input id="srcFichier" type="file"></div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" id="cancelSourceBtn" type="button">Annuler</button>
+        <button class="btn btn-primary" id="saveSourceBtn" type="button">Ajouter</button>
+      </div>
+    </div>`;
+  const toggleBtn = document.getElementById('addSourceToggleBtn');
+  const form = document.getElementById('addSourceForm');
+  toggleBtn.addEventListener('click', ()=>{ form.style.display = 'block'; toggleBtn.style.display = 'none'; });
+  document.getElementById('cancelSourceBtn').addEventListener('click', ()=>{ form.style.display = 'none'; toggleBtn.style.display = 'inline-block'; });
+  document.getElementById('saveSourceBtn').addEventListener('click', ()=>{
+    const titre = document.getElementById('srcTitre').value.trim();
+    if(!titre){ showToast('Le titre de la source est obligatoire.', 'error'); return; }
+    const file = document.getElementById('srcFichier').files[0] || null;
+    if(file && file.size > SOURCE_FILE_MAX_BYTES){ showToast('Le fichier dépasse la limite de 20 Mo.', 'error'); return; }
+    PENDING_NEW.sources.push({
+      type_source: document.getElementById('srcType').value,
+      titre_source: titre,
+      auteur_editeur: document.getElementById('srcAuteur').value.trim() || null,
+      lien: document.getElementById('srcLien').value.trim() || null,
+      note: document.getElementById('srcNote').value.trim() || null,
+      file
+    });
+    renderPendingSources();
+  });
+}
+
+function removePendingSource(index){
+  PENDING_NEW.sources.splice(index, 1);
+  renderPendingSources();
+}
+
+// Envoie les photos et sources préparées pour l'objet qui vient d'être créé.
+// Retourne la liste des éléments en échec (vide = tout est passé).
+async function flushPendingNew(uid){
+  const failures = [];
+  const stamp = Date.now();
+  const sendPhoto = async (file, label, prefix, position) => {
+    try{
+      const { path } = await compressAndUploadPhoto(file, `${uid}/${prefix}-${stamp}-${Math.floor(Math.random()*1000)}`);
+      const { error } = await sb.from('photos').insert({ objet_uid: uid, storage_path: path, label, position });
+      if(error) throw error;
+    }catch(err){
+      failures.push(label === 'Autre' ? 'photo supplémentaire' : 'photo ' + label);
+    }
+  };
+  if(PENDING_NEW.photos.Recto) await sendPhoto(PENDING_NEW.photos.Recto, 'Recto', 'recto', null);
+  if(PENDING_NEW.photos.Verso) await sendPhoto(PENDING_NEW.photos.Verso, 'Verso', 'verso', null);
+  let pos = 1;
+  for(const f of PENDING_NEW.photos.extras){ await sendPhoto(f, 'Autre', 'autre', pos++); }
+  for(const src of PENDING_NEW.sources){
+    try{
+      const { file, ...fields } = src;
+      const payload = { objet_uid: uid, ...fields };
+      if(file){
+        const ext = (file.name.split('.').pop() || 'pdf').toLowerCase();
+        const path = `sources/${uid}/${Date.now()}-${Math.floor(Math.random()*1000)}.${ext}`;
+        await uploadToScaleway(path, file, file.type || 'application/octet-stream');
+        payload.fichier_path = path;
+        payload.fichier_nom = file.name;
+      }
+      const { error } = await sb.from('sources').insert(payload);
+      if(error) throw error;
+    }catch(err){
+      failures.push('source « ' + src.titre_source + ' »');
+    }
+  }
+  PENDING_NEW = { photos: { Recto: null, Verso: null, extras: [] }, sources: [] };
+  return failures;
 }
 
 let FORM_MODE = null;
