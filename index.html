@@ -4853,13 +4853,16 @@ refreshAuthState().then(()=> loadAll()).then(()=> initFranceMap());
       periods = [];
       for(let y = yearKeys[0]; y <= yearKeys[yearKeys.length - 1]; y++){ // années sans acquisition = colonne vide, pour garder une vraie échelle de temps
         const Y = byYear[y] || { n: 0, eur: 0 };
-        periods.push({ label: String(y), full: String(y), n: Y.n, eur: Y.eur });
+        periods.push({ label: String(y), full: String(y), n: Y.n, eur: Y.eur, year: y, month: null });
       }
     } else {
       const Y = byYear[ACQ_SELECTION];
-      periods = Y.months.map((m, i) => ({ label: MOIS_COURTS[i], full: `${MOIS_LONGS[i]} ${ACQ_SELECTION}`, n: m.n, eur: m.eur }));
+      periods = Y.months.map((m, i) => ({ label: MOIS_COURTS[i], full: `${MOIS_LONGS[i]} ${ACQ_SELECTION}`, n: m.n, eur: m.eur, year: Number(ACQ_SELECTION), month: i }));
     }
     const total = periods.reduce((s, p) => s + p.n, 0);
+    // Les objets sans date d'acquisition n'ont pas de place sur une frise : on les
+    // signale plutôt que de laisser un écart inexpliqué avec le total du dashboard.
+    const undated = ACQ_SELECTION === 'all' ? ALL_OBJETS.filter(o => !o.date_acquisition || isNaN(new Date(o.date_acquisition))).length : 0;
 
     // Boutons : « Toutes » + les 3 années les plus récentes.
     const chipYears = yearKeys.slice(-3).reverse();
@@ -4867,7 +4870,7 @@ refreshAuthState().then(()=> loadAll()).then(()=> initFranceMap());
     el.innerHTML = `
       <div class="acq-head">
         <div class="acq-chips">${chips.map(([v, l]) => `<button type="button" class="acq-chip${String(ACQ_SELECTION) === v ? ' on' : ''}" data-v="${v}">${l}</button>`).join('')}</div>
-        <span class="acq-total"><b>${total}</b> objet${total > 1 ? 's' : ''}${ACQ_SELECTION === 'all' ? '' : ' en ' + ACQ_SELECTION}</span>
+        <span class="acq-total"><b>${total}</b> objet${total > 1 ? 's' : ''}${ACQ_SELECTION === 'all' ? '' : ' en ' + ACQ_SELECTION}${undated ? ` <span title="Objets dont la date d'acquisition n'est pas renseignée : ils n'apparaissent pas dans le graphique.">· ${undated} sans date</span>` : ''}</span>
       </div>
       <div class="acq-chart"></div>
       <div class="acq-tip"></div>`;
@@ -4889,6 +4892,8 @@ refreshAuthState().then(()=> loadAll()).then(()=> initFranceMap());
     const bw = Math.max(3, Math.min(24, slot - 4));
     const yPos = v => (h - padB) - (v / topV) * (h - padB - padT);
     const labelEvery = Math.max(1, Math.ceil(((periods[0].label.length * 6) + 6) / slot)); // pas de libellés qui se chevauchent quand il y a beaucoup d'années
+    // Valeur écrite au-dessus de chaque colonne quand il y a la place ; sinon seulement sur la plus haute.
+    const labelAll = slot >= 17;
     const maxIdx = periods.findIndex(p => p.n === maxV);
 
     let svg = `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" style="width:100%; height:100%; display:block; overflow:visible;">`;
@@ -4903,28 +4908,41 @@ refreshAuthState().then(()=> loadAll()).then(()=> initFranceMap());
         const yTop = yPos(p.n), r = Math.min(4, (h - padB) - yTop);
         svg += `<path class="acq-bar" d="M${x.toFixed(1)},${h - padB}V${(yTop + r).toFixed(1)}Q${x.toFixed(1)},${yTop.toFixed(1)} ${(x + r).toFixed(1)},${yTop.toFixed(1)}H${(x + bw - r).toFixed(1)}Q${(x + bw).toFixed(1)},${yTop.toFixed(1)} ${(x + bw).toFixed(1)},${(yTop + r).toFixed(1)}V${h - padB}Z"/>`;
       }
-      if(i === maxIdx) svg += `<text class="acq-val" x="${cx.toFixed(1)}" y="${(yPos(p.n) - 5).toFixed(1)}" text-anchor="middle">${p.n}</text>`;
+      if(p.n > 0 && (labelAll || i === maxIdx)) svg += `<text class="acq-val" x="${cx.toFixed(1)}" y="${(yPos(p.n) - 5).toFixed(1)}" text-anchor="middle">${p.n}</text>`;
       if(i % labelEvery === 0) svg += `<text class="acq-axis" x="${cx.toFixed(1)}" y="${h - 4}" text-anchor="middle">${p.label}</text>`;
       svg += `<rect class="acq-hit" data-i="${i}" x="${(padL + slot * i).toFixed(1)}" y="${padT - 8}" width="${slot.toFixed(1)}" height="${(h - padT - padB + 8).toFixed(1)}"/>`;
     });
     svg += '</svg>';
     host.innerHTML = svg;
 
-    // Infobulle au survol (souris) et au toucher (mobile).
+    // Infobulle au survol (souris) ; un clic ouvre le catalogue filtré sur la
+    // période. Sur écran tactile (pas de survol), un premier toucher affiche
+    // l'infobulle et un second toucher sur la même colonne ouvre la liste.
+    const touchOnly = window.matchMedia && window.matchMedia('(hover: none)').matches;
+    let lastTapped = -1;
     function showTip(e, p){
       const box = el.getBoundingClientRect();
-      tip.innerHTML = `<b>${esc(p.full)}</b><br>${p.n} objet${p.n > 1 ? 's' : ''} · ${EUR(p.eur)} investis`;
+      const hint = p.n > 0 ? `<br><span style="opacity:.7">${touchOnly ? 'Toucher à nouveau' : 'Cliquer'} pour voir la liste</span>` : '';
+      tip.innerHTML = `<b>${esc(p.full)}</b><br>${p.n} objet${p.n > 1 ? 's' : ''} · ${EUR(p.eur)} investis${hint}`;
       tip.style.opacity = '1';
       let left = e.clientX - box.left + 10;
-      if(left > box.width - 175) left = e.clientX - box.left - 175;
+      if(left > box.width - 185) left = e.clientX - box.left - 185;
       tip.style.left = Math.max(0, left) + 'px';
-      tip.style.top = Math.max(0, e.clientY - box.top - 52) + 'px';
+      tip.style.top = Math.max(0, e.clientY - box.top - 62) + 'px';
+    }
+    function openList(p){
+      if(!p.n || typeof navigateToFilteredCatalogue !== 'function') return;
+      navigateToFilteredCatalogue({ dateFilter: { field: 'date_acquisition', year: p.year, month: p.month, label: `Acquisitions ${p.month === null ? p.year : p.full}` } });
     }
     host.querySelectorAll('.acq-hit').forEach(r => {
-      const p = periods[+r.dataset.i];
+      const i = +r.dataset.i, p = periods[i];
+      if(p.n > 0) r.style.cursor = 'pointer'; else r.style.cursor = 'default';
       r.addEventListener('mousemove', e => showTip(e, p));
-      r.addEventListener('click', e => showTip(e, p));
       r.addEventListener('mouseleave', () => { tip.style.opacity = '0'; });
+      r.addEventListener('click', e => {
+        if(touchOnly && lastTapped !== i){ lastTapped = i; showTip(e, p); return; }
+        openList(p);
+      });
     });
   }
 
