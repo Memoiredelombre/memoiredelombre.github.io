@@ -502,7 +502,22 @@
   .stack .panel{flex:1; display:flex; flex-direction:column;}
   .flex-panel{display:flex; flex-direction:column;}
   .flex-panel > div:last-child{flex:1; display:flex; flex-direction:column; justify-content:center; min-height:120px; width:100%;}
-  #acquisitionsTempsList{min-height:60px;}
+  #acquisitionsTempsList{min-height:60px; position:relative; display:flex; flex-direction:column;}
+  .acq-head{display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:8px; flex-wrap:wrap; flex:none;}
+  .acq-chips{display:flex; gap:6px; flex-wrap:wrap;}
+  .acq-chip{border:1px solid var(--border); background:var(--surface-2); color:var(--ink-soft); border-radius:999px; padding:3px 10px; font:inherit; font-size:11.5px; cursor:pointer; transition:background .15s ease, color .15s ease;}
+  .acq-chip:hover{color:var(--ink);}
+  .acq-chip.on{background:var(--private); border-color:var(--private); color:var(--accent-ink); font-weight:600;}
+  .acq-total{font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--ink-soft);}
+  .acq-total b{color:var(--ink);}
+  .acq-chart{flex:1; min-height:150px; position:relative;}
+  .acq-grid{stroke:var(--border); stroke-width:1;}
+  .acq-axis{font-family:'IBM Plex Mono',monospace; font-size:9.5px; fill:var(--ink-faint);}
+  .acq-val{font-family:'IBM Plex Mono',monospace; font-size:11px; font-weight:600; fill:var(--ink);}
+  .acq-bar{fill:var(--private);}
+  .acq-hit{fill:transparent; cursor:pointer;}
+  .acq-hit:hover{fill:color-mix(in srgb, var(--private) 8%, transparent);}
+  .acq-tip{position:absolute; pointer-events:none; background:var(--ink); color:var(--surface); border-radius:8px; padding:7px 10px; font-size:11.5px; line-height:1.45; white-space:nowrap; opacity:0; transition:opacity .1s; z-index:5; box-shadow:0 6px 18px rgba(0,0,0,.25);}
   .panel.compact{padding:17px 19px;}
   .panel.compact h3{margin-bottom:12px;}
   .scroll-list{max-height:280px; overflow-y:auto; padding-right:4px;}
@@ -4797,48 +4812,120 @@ refreshAuthState().then(()=> loadAll()).then(()=> initFranceMap());
 // jamais : seule l'échelle interne du graphique s'adapte.
 // ============================================================
 (function(){
+  // Sélection courante : 'all' (une colonne par année) ou une année précise
+  // ('2025'…) pour le détail mois par mois. Gardée entre deux redessins.
+  let ACQ_SELECTION = 'all';
+  const MOIS_COURTS = ['J','F','M','A','M','J','J','A','S','O','N','D'];
+  const MOIS_LONGS = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+
+  // Graduation « propre » de l'axe vertical (0, 1, 2… / 0, 5, 10… / 0, 10, 20…)
+  // avec au plus 4 intervalles.
+  function niceStep(max){
+    for(const st of [1, 2, 5, 10, 20, 50, 100, 200, 500]){
+      if(max / st <= 4) return st;
+    }
+    return 1000;
+  }
+
   function draw(){
     const el = document.getElementById('acquisitionsTempsList');
     if(!el) return;
-    const counts = {};
+
+    // Regroupe les acquisitions par année et par mois (nombre d'objets + montant investi).
+    const byYear = {};
     ALL_OBJETS.forEach(o => {
       if(!o.date_acquisition) return;
-      const y = new Date(o.date_acquisition).getFullYear();
-      counts[y] = (counts[y] || 0) + 1;
+      const d = new Date(o.date_acquisition);
+      if(isNaN(d)) return;
+      const yr = d.getFullYear(), mo = d.getMonth();
+      const prix = Number(o.prix_achat) || 0;
+      const Y = byYear[yr] = byYear[yr] || { n: 0, eur: 0, months: Array.from({length:12}, () => ({ n: 0, eur: 0 })) };
+      Y.n++; Y.eur += prix;
+      Y.months[mo].n++; Y.months[mo].eur += prix;
     });
-    const years = Object.keys(counts).sort();
-    if(years.length === 0){ el.innerHTML = '<div class="state-msg">Aucune date d\'acquisition renseignée</div>'; return; }
+    const yearKeys = Object.keys(byYear).map(Number).sort((a,b) => a - b);
+    if(yearKeys.length === 0){ el.innerHTML = '<div class="state-msg">Aucune date d\'acquisition renseignée</div>'; return; }
+    if(ACQ_SELECTION !== 'all' && !byYear[ACQ_SELECTION]) ACQ_SELECTION = 'all';
 
-    const values = years.map(y => counts[y]);
-    // Taille réelle du conteneur (avec un plancher raisonnable tant que la mise
-    // en page n'est pas encore stabilisée, ex. tout premier rendu).
-    const w = Math.max(el.clientWidth, 120);
-    const h = Math.max(el.clientHeight, 90);
-    // padL/padR symétriques (20/20) — une asymétrie (26/14) s'était glissée ici,
-    // ce qui décalait visiblement tout le tracé vers la droite dans son cadre.
-    const padL = 20, padR = 20, padT = 20, padB = Math.max(24, Math.round(h * 0.13));
-    const maxY = Math.max(1, ...values);
-    const x = i => padL + (i / (values.length - 1 || 1)) * (w - padL - padR);
-    const y = v => (h - padB) - (v / maxY) * (h - padB - padT);
-    const linePath = values.map((v, i) => `${i === 0 ? 'M' : 'L'} ${x(i).toFixed(1)} ${y(v).toFixed(1)}`).join(' ');
-    const areaPath = `${linePath} L ${x(values.length - 1).toFixed(1)} ${(h - padB)} L ${x(0).toFixed(1)} ${(h - padB)} Z`;
-    const anchorFor = i => i === 0 ? 'start' : (i === values.length - 1 ? 'end' : 'middle');
-    const dxFor = i => i === 0 ? 4 : (i === values.length - 1 ? -4 : 0);
+    // Séries à tracer.
+    let periods;
+    if(ACQ_SELECTION === 'all'){
+      periods = [];
+      for(let y = yearKeys[0]; y <= yearKeys[yearKeys.length - 1]; y++){ // années sans acquisition = colonne vide, pour garder une vraie échelle de temps
+        const Y = byYear[y] || { n: 0, eur: 0 };
+        periods.push({ label: String(y), full: String(y), n: Y.n, eur: Y.eur });
+      }
+    } else {
+      const Y = byYear[ACQ_SELECTION];
+      periods = Y.months.map((m, i) => ({ label: MOIS_COURTS[i], full: `${MOIS_LONGS[i]} ${ACQ_SELECTION}`, n: m.n, eur: m.eur }));
+    }
+    const total = periods.reduce((s, p) => s + p.n, 0);
 
+    // Boutons : « Toutes » + les 3 années les plus récentes.
+    const chipYears = yearKeys.slice(-3).reverse();
+    const chips = [['all', 'Toutes'], ...chipYears.map(y => [String(y), String(y)])];
     el.innerHTML = `
-      <svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" style="width:100%; height:100%; display:block; overflow:visible;">
-        <path d="${areaPath}" fill="var(--private)" fill-opacity="0.16" stroke="none"/>
-        <path d="${linePath}" fill="none" stroke="var(--private)" stroke-width="2"/>
-        ${values.map((v, i) => `
-          <g class="chart-pt">
-            <circle class="hit" cx="${x(i).toFixed(1)}" cy="${y(v).toFixed(1)}" r="10"/>
-            <circle class="dot" cx="${x(i).toFixed(1)}" cy="${y(v).toFixed(1)}" r="3" fill="var(--private)"/>
-            <text class="pt-val" x="${x(i).toFixed(1)}" y="${(y(v) - 9).toFixed(1)}" text-anchor="${anchorFor(i)}" dx="${dxFor(i)}" font-size="11" font-weight="600" fill="var(--private)" font-family="IBM Plex Mono, monospace">${v}</text>
-          </g>
-        `).join('')}
-        ${years.map((yr, i) => `<text x="${x(i).toFixed(1)}" y="${h - 4}" font-size="9" fill="var(--ink-faint)" text-anchor="${anchorFor(i)}" dx="${dxFor(i)}" font-family="IBM Plex Mono, monospace">${yr}</text>`).join('')}
-      </svg>
-    `;
+      <div class="acq-head">
+        <div class="acq-chips">${chips.map(([v, l]) => `<button type="button" class="acq-chip${String(ACQ_SELECTION) === v ? ' on' : ''}" data-v="${v}">${l}</button>`).join('')}</div>
+        <span class="acq-total"><b>${total}</b> objet${total > 1 ? 's' : ''}${ACQ_SELECTION === 'all' ? '' : ' en ' + ACQ_SELECTION}</span>
+      </div>
+      <div class="acq-chart"></div>
+      <div class="acq-tip"></div>`;
+    el.querySelectorAll('.acq-chip').forEach(btn => btn.addEventListener('click', () => {
+      ACQ_SELECTION = btn.dataset.v;
+      draw();
+    }));
+
+    const host = el.querySelector('.acq-chart');
+    const tip = el.querySelector('.acq-tip');
+    const w = Math.max(host.clientWidth, 120);
+    const h = Math.max(host.clientHeight, 110);
+    const padL = 24, padR = 4, padT = 18, padB = 20;
+    const n = periods.length;
+    const maxV = Math.max(1, ...periods.map(p => p.n));
+    const step = niceStep(maxV);
+    const topV = Math.ceil(maxV / step) * step;
+    const slot = (w - padL - padR) / n;
+    const bw = Math.max(3, Math.min(24, slot - 4));
+    const yPos = v => (h - padB) - (v / topV) * (h - padB - padT);
+    const labelEvery = Math.max(1, Math.ceil(((periods[0].label.length * 6) + 6) / slot)); // pas de libellés qui se chevauchent quand il y a beaucoup d'années
+    const maxIdx = periods.findIndex(p => p.n === maxV);
+
+    let svg = `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" style="width:100%; height:100%; display:block; overflow:visible;">`;
+    for(let t = 0; t <= topV; t += step){
+      svg += `<line class="acq-grid" x1="${padL}" x2="${w - padR}" y1="${yPos(t).toFixed(1)}" y2="${yPos(t).toFixed(1)}"/>`;
+      svg += `<text class="acq-axis" x="${padL - 5}" y="${(yPos(t) + 3).toFixed(1)}" text-anchor="end">${t}</text>`;
+    }
+    periods.forEach((p, i) => {
+      const cx = padL + slot * i + slot / 2;
+      const x = cx - bw / 2;
+      if(p.n > 0){
+        const yTop = yPos(p.n), r = Math.min(4, (h - padB) - yTop);
+        svg += `<path class="acq-bar" d="M${x.toFixed(1)},${h - padB}V${(yTop + r).toFixed(1)}Q${x.toFixed(1)},${yTop.toFixed(1)} ${(x + r).toFixed(1)},${yTop.toFixed(1)}H${(x + bw - r).toFixed(1)}Q${(x + bw).toFixed(1)},${yTop.toFixed(1)} ${(x + bw).toFixed(1)},${(yTop + r).toFixed(1)}V${h - padB}Z"/>`;
+      }
+      if(i === maxIdx) svg += `<text class="acq-val" x="${cx.toFixed(1)}" y="${(yPos(p.n) - 5).toFixed(1)}" text-anchor="middle">${p.n}</text>`;
+      if(i % labelEvery === 0) svg += `<text class="acq-axis" x="${cx.toFixed(1)}" y="${h - 4}" text-anchor="middle">${p.label}</text>`;
+      svg += `<rect class="acq-hit" data-i="${i}" x="${(padL + slot * i).toFixed(1)}" y="${padT - 8}" width="${slot.toFixed(1)}" height="${(h - padT - padB + 8).toFixed(1)}"/>`;
+    });
+    svg += '</svg>';
+    host.innerHTML = svg;
+
+    // Infobulle au survol (souris) et au toucher (mobile).
+    function showTip(e, p){
+      const box = el.getBoundingClientRect();
+      tip.innerHTML = `<b>${esc(p.full)}</b><br>${p.n} objet${p.n > 1 ? 's' : ''} · ${EUR(p.eur)} investis`;
+      tip.style.opacity = '1';
+      let left = e.clientX - box.left + 10;
+      if(left > box.width - 175) left = e.clientX - box.left - 175;
+      tip.style.left = Math.max(0, left) + 'px';
+      tip.style.top = Math.max(0, e.clientY - box.top - 52) + 'px';
+    }
+    host.querySelectorAll('.acq-hit').forEach(r => {
+      const p = periods[+r.dataset.i];
+      r.addEventListener('mousemove', e => showTip(e, p));
+      r.addEventListener('click', e => showTip(e, p));
+      r.addEventListener('mouseleave', () => { tip.style.opacity = '0'; });
+    });
   }
 
   window.renderAcquisitionsTemps = draw;
