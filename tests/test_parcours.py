@@ -135,6 +135,31 @@ async def main():
         await page.click("#backBtn")
         await page.wait_for_timeout(300)
 
+        # ---- Acquisitions dans le temps : colonnes par année, détail par mois ----
+        await page.evaluate("""() => {
+          const dates = ['2024-03-10','2024-03-20','2024-07-01','2025-01-15','2025-06-02','2025-06-20','2025-06-25','2026-02-05'];
+          ALL_OBJETS.forEach((o, i) => { o.date_acquisition = dates[i] || null; });
+          switchView('dashboard'); pushNav('dashboard', null); renderDashboard();
+        }""")
+        await page.wait_for_timeout(500)
+        chips = [t.strip() for t in await page.locator("#acquisitionsTempsList .acq-chip").all_inner_texts()]
+        check("les boutons Toutes + années récentes sont proposés", chips == ["Toutes", "2026", "2025", "2024"], str(chips))
+        check("vue « Toutes » : 3 colonnes (2024, 2025, 2026)", await page.locator("#acquisitionsTempsList .acq-bar").count() == 3)
+        await page.locator("#acquisitionsTempsList .acq-hit").nth(1).hover()
+        await page.wait_for_timeout(200)
+        tip = await page.locator("#acquisitionsTempsList .acq-tip").inner_text()
+        check("l'infobulle d'une année donne objets et montant investi", "2025" in tip and "4 objets" in tip and "€ investis" in tip, tip)
+        await page.locator("#acquisitionsTempsList .acq-chip", has_text="2025").click()
+        await page.wait_for_timeout(300)
+        check("vue d'une année : 12 mois en abscisse", await page.locator("#acquisitionsTempsList .acq-hit").count() == 12)
+        check("vue 2025 : colonnes seulement pour janvier et juin", await page.locator("#acquisitionsTempsList .acq-bar").count() == 2)
+        await page.locator("#acquisitionsTempsList .acq-hit").nth(5).hover()
+        await page.wait_for_timeout(200)
+        tip = await page.locator("#acquisitionsTempsList .acq-tip").inner_text()
+        check("l'infobulle d'un mois donne le détail (juin 2025 : 3 objets)", "juin 2025" in tip and "3 objets" in tip, tip)
+        await page.locator("#acquisitionsTempsList .acq-chip", has_text="Toutes").click()
+        await page.wait_for_timeout(200)
+
         # Fiche de l'objet reçu à 0 € : +100 % à la place du pourcentage
         await page.evaluate("() => openFiche('uid-003')")
         await page.wait_for_timeout(300)

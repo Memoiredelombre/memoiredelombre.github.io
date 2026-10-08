@@ -40,7 +40,8 @@ Scaleway : un faux backend (`mock_stub.js`) est injecté dans une copie de
   page sans « Supabase » pour un invité, bouton « Filtres », fiche en
   lecture seule (seul « Modifier »), page de modification unique (photos :
   ajout/suppression, sources, un seul titre « Sources », suppression de
-  l'objet), création avec photos et sources en une seule fois.
+  l'objet), création avec photos et sources en une seule fois, bloc « Top plus-value »
+  (4 objets, don à 0 €), et graphique « Acquisitions dans le temps » (année / mois).
 
 Chaque test vérifie aussi qu'aucune erreur JavaScript ne s'est produite
 pendant le parcours qu'il joue.
