@@ -159,6 +159,23 @@ async def main():
         check("l'infobulle d'un mois donne le détail (juin 2025 : 3 objets)", "juin 2025" in tip and "3 objets" in tip, tip)
         await page.locator("#acquisitionsTempsList .acq-chip", has_text="Toutes").click()
         await page.wait_for_timeout(200)
+        n_vals = await page.locator("#acquisitionsTempsList .acq-val").count()
+        check("chaque colonne affiche sa valeur (3 colonnes, 3 chiffres)", n_vals == 3, str(n_vals))
+        head = await page.locator("#acquisitionsTempsList .acq-total").inner_text()
+        n_total = await page.evaluate("() => ALL_OBJETS.length")
+        n_dated = 8
+        check("le total reste cohérent : objets datés + « sans date » = total du dashboard",
+              f"{n_dated} objets" in head and f"{n_total - n_dated} sans date" in head, head)
+        # Clic sur une colonne : liste des objets de la période dans le catalogue
+        await page.locator("#acquisitionsTempsList .acq-hit").nth(1).click()
+        await page.wait_for_timeout(500)
+        check("un clic sur une colonne ouvre le catalogue", await active_view(page) == "view-catalogue")
+        n_listed = await page.locator("#view-catalogue [data-uid]").count()
+        check("le catalogue liste exactement les 4 objets acquis en 2025", n_listed == 4, str(n_listed))
+        tag = await page.locator("#quickFilterTag").inner_text()
+        check("le filtre actif est affiché (Acquisitions 2025)", "2025" in tag, tag)
+        await page.evaluate("() => { clearQuickDateFilter(); switchView('dashboard'); pushNav('dashboard', null); }")
+        await page.wait_for_timeout(300)
 
         # Fiche de l'objet reçu à 0 € : +100 % à la place du pourcentage
         await page.evaluate("() => openFiche('uid-003')")
