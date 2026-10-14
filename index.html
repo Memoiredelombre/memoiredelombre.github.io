@@ -3996,31 +3996,41 @@ function pendingPreview(file){
   return u;
 }
 
-function renderPendingPhotos(){
-  const el = document.getElementById('galleryWrapForm');
+// Photos préparées avant la création : même composant pour un objet (ctx 'obj')
+// et pour un souhait (ctx 'wish') — seuls le conteneur et le magasin en mémoire changent.
+let PENDING_WISH = { photos: { Recto: null, Verso: null, extras: [] } };
+const PENDING_CTX = {
+  obj:  { container: 'galleryWrapForm',     store: () => PENDING_NEW.photos },
+  wish: { container: 'wishGalleryWrapForm', store: () => PENDING_WISH.photos }
+};
+
+function renderPendingPhotos(ctx='obj'){
+  const { container, store } = PENDING_CTX[ctx];
+  const el = document.getElementById(container);
   if(!el) return;
+  const photos = store();
   PENDING_PREVIEW_URLS.forEach(u => URL.revokeObjectURL(u));
   PENDING_PREVIEW_URLS = [];
   const main = (label) => {
-    const f = PENDING_NEW.photos[label];
+    const f = photos[label];
     if(f){
       return `
-        <div class="photo-tile" id="galleryWrapForm-pending-${label}">
+        <div class="photo-tile" id="${container}-pending-${label}">
           <img src="${pendingPreview(f)}" alt="${label}">
           <span class="lbl-tag">${label}</span>
-          <button class="del-btn" type="button" title="Retirer cette photo" onclick="removePendingPhoto('${label}')">×</button>
+          <button class="del-btn" type="button" title="Retirer cette photo" onclick="removePendingPhoto('${label}',0,'${ctx}')">×</button>
         </div>`;
     }
     return `
-      <label class="photo-tile empty" id="galleryWrapForm-pending-${label}">
+      <label class="photo-tile empty" id="${container}-pending-${label}">
         ${IMG_ICON}<span class="lbl-tag">Ajouter — ${label}</span>
-        <input type="file" accept="image/*" onchange="setPendingPhoto(event,'${label}')">
+        <input type="file" accept="image/*" onchange="setPendingPhoto(event,'${label}','${ctx}')">
       </label>`;
   };
-  const extras = PENDING_NEW.photos.extras.map((f,i)=>`
+  const extras = photos.extras.map((f,i)=>`
     <div class="photo-tile small">
       <img src="${pendingPreview(f)}" alt="Photo">
-      <button class="del-btn" type="button" title="Retirer cette photo" onclick="removePendingPhoto('extra',${i})">×</button>
+      <button class="del-btn" type="button" title="Retirer cette photo" onclick="removePendingPhoto('extra',${i},'${ctx}')">×</button>
     </div>`).join('');
   el.innerHTML = `
     <div class="photo-upload-row">${main('Recto')}${main('Verso')}</div>
@@ -4029,23 +4039,25 @@ function renderPendingPhotos(){
       ${extras}
       <label class="photo-tile small empty">
         ${IMG_ICON}<span class="lbl-tag">Ajouter</span>
-        <input type="file" accept="image/*" multiple onchange="setPendingPhoto(event,'extra')">
+        <input type="file" accept="image/*" multiple onchange="setPendingPhoto(event,'extra','${ctx}')">
       </label>
     </div>`;
 }
 
-function setPendingPhoto(event, label){
+function setPendingPhoto(event, label, ctx='obj'){
   const files = Array.from(event.target.files || []);
   if(!files.length) return;
-  if(label === 'extra') PENDING_NEW.photos.extras.push(...files);
-  else PENDING_NEW.photos[label] = files[0];
-  renderPendingPhotos();
+  const photos = PENDING_CTX[ctx].store();
+  if(label === 'extra') photos.extras.push(...files);
+  else photos[label] = files[0];
+  renderPendingPhotos(ctx);
 }
 
-function removePendingPhoto(label, index){
-  if(label === 'extra') PENDING_NEW.photos.extras.splice(index, 1);
-  else PENDING_NEW.photos[label] = null;
-  renderPendingPhotos();
+function removePendingPhoto(label, index, ctx='obj'){
+  const photos = PENDING_CTX[ctx].store();
+  if(label === 'extra') photos.extras.splice(index, 1);
+  else photos[label] = null;
+  renderPendingPhotos(ctx);
 }
 
 function renderPendingSources(){
@@ -6290,9 +6302,9 @@ async function renderWishFicheMiniMap(wishId, depString){
 // prix d'achat, date d'estimation) ainsi que emplacement physique et
 // visibilité, qui eux ne concernent qu'un objet déjà possédé — un souhait ne
 // l'est pas encore. Comme pour l'objet, ce formulaire ne contient QUE les
-// champs texte — les photos vivent sur la fiche (voir showWishFiche()), pas
-// ici, exactement comme #view-form (objet) n'a pas de galerie et #view-fiche
-// oui.
+// champs texte et les photos (galerie éditable en modification, photos
+// préparées en création) — la fiche (showWishFiche()) les affiche en lecture
+// seule, exactement comme #view-fiche et #view-form pour un objet.
 function openWishForm(w){
   WISH_EDIT_ID = w ? w.id : null;
   const o = w || {};
@@ -6312,6 +6324,11 @@ function openWishForm(w){
   document.getElementById('wishFormContent').innerHTML = `
     <div class="form-card">
       <h2>${w ? 'Modifier le souhait' : 'Nouveau souhait'}</h2>
+
+      <div class="form-section">
+        <h4>Photos</h4>
+        <div id="wishGalleryWrapForm"></div>
+      </div>
 
       <div class="form-section">
         <h4>Général</h4>
@@ -6371,6 +6388,16 @@ function openWishForm(w){
 
   wireTirageAutofillFor('wf_');
   document.getElementById('wishSaveBtn').addEventListener('click', saveWish);
+  const wishBack = document.getElementById('wishFormBackBtn');
+  if(wishBack) wishBack.textContent = w ? '← Retour au souhait' : '← Annuler';
+  // Modification : galerie éditable ; création : photos préparées en mémoire
+  // et envoyées juste après l'enregistrement (voir saveWish()).
+  if(w){
+    renderWishPhotoGallery(w.id, 'wishGalleryWrapForm', true);
+  } else {
+    PENDING_WISH = { photos: { Recto: null, Verso: null, extras: [] } };
+    renderPendingPhotos('wish');
+  }
 
   switchView('wish-form');
 }
@@ -6424,8 +6451,11 @@ function openWishLightboxFor(wishId, photoId){
   showLightboxImage();
 }
 
-function renderWishPhotoGallery(wishId){
-  const el = document.getElementById('wishFicheGalleryWrap');
+// editable=false (fiche du souhait) : consultation seule, clic = lightbox ;
+// editable=true (page de modification) : ajout / remplacement / suppression.
+// Même principe que renderPhotoGallery() pour les objets.
+function renderWishPhotoGallery(wishId, containerId='wishFicheGalleryWrap', editable=false){
+  const el = document.getElementById(containerId);
   if(!el) return;
   const rawShots = WISHLIST_PHOTOS_BY_ID[wishId] || [];
   const seenIds = new Set();
@@ -6438,15 +6468,16 @@ function renderWishPhotoGallery(wishId){
     if(photo){
       const url = scalewayPublicUrl(photo.storage_path);
       return `
-        <div class="photo-tile" id="wish-zone-${wishId}-${label}">
+        <div class="photo-tile" id="${containerId}-zone-${wishId}-${label}">
           ${cachedImgTag(url, `alt="${label}" onclick="openWishLightboxFor('${wishId}','${photo.id}')"`)}
           <span class="lbl-tag">${label}</span>
-          <label class="edit-btn" title="Changer la photo">✎<input type="file" accept="image/*" style="display:none" onchange="handleWishUploadChange(event,'${wishId}','${label}','${photo.id}')"></label>
+          ${editable ? `<label class="edit-btn" title="Changer la photo">✎<input type="file" accept="image/*" style="display:none" onchange="handleWishUploadChange(event,'${wishId}','${label}','${photo.id}')"></label>` : ''}
         </div>
       `;
     }
+    if(!editable) return `<div class="photo-tile empty" id="${containerId}-zone-${wishId}-${label}">${IMG_ICON}<span class="lbl-tag">${label} — non disponible</span></div>`;
     return `
-      <label class="photo-tile empty" id="wish-zone-${wishId}-${label}">
+      <label class="photo-tile empty" id="${containerId}-zone-${wishId}-${label}">
         ${IMG_ICON}<span class="lbl-tag">Ajouter — ${label}</span>
         <input type="file" accept="image/*" onchange="handleWishUploadChange(event,'${wishId}','${label}',null)">
       </label>
@@ -6458,7 +6489,7 @@ function renderWishPhotoGallery(wishId){
     return `
       <div class="photo-tile small">
         ${cachedImgTag(url, `alt="Photo" onclick="openWishLightboxFor('${wishId}','${p.id}')"`, scalewayPublicUrl(p.storage_path))}
-        <button class="del-btn" title="Supprimer" onclick="handleWishDeletePhoto('${p.id}','${p.storage_path}','${wishId}')">×</button>
+        ${editable ? `<button class="del-btn" title="Supprimer" onclick="handleWishDeletePhoto('${p.id}','${p.storage_path}','${wishId}')">×</button>` : ''}
       </div>
     `;
   }).join('');
@@ -6468,16 +6499,28 @@ function renderWishPhotoGallery(wishId){
       ${mainTile(recto,'Recto')}
       ${mainTile(verso,'Verso')}
     </div>
+    ${(autres.length > 0 || editable) ? `
     <div class="extra-photos-label">Photos supplémentaires</div>
     <div class="extra-photos-row">
       ${extraTiles}
+      ${editable ? `
       <label class="photo-tile small empty">
         ${IMG_ICON}<span class="lbl-tag">Ajouter</span>
         <input type="file" accept="image/*" onchange="handleWishAddExtraPhoto(event,'${wishId}')">
       </label>
+      ` : ''}
     </div>
+    ` : ''}
   `;
   hydrateCachedImages(el);
+}
+
+// Rafraîchit la galerie d'un souhait partout où elle est affichée (fiche en
+// lecture seule et/ou page de modification), puis la liste des souhaits.
+function refreshWishGalleries(wishId){
+  if(String(CURRENT_WISH_FICHE_ID) === String(wishId)) renderWishPhotoGallery(wishId, 'wishFicheGalleryWrap', false);
+  if(WISH_EDIT_ID && String(WISH_EDIT_ID) === String(wishId)) renderWishPhotoGallery(wishId, 'wishGalleryWrapForm', true);
+  renderWishlist();
 }
 
 async function handleWishDeletePhoto(photoId, storagePath, wishId){
@@ -6485,8 +6528,7 @@ async function handleWishDeletePhoto(photoId, storagePath, wishId){
   try{ await deletePhotoWithThumb(storagePath); }catch(err){ showToast("Erreur de suppression : " + (err.detail || err.message), 'error'); return; }
   await sb.from('wishlist_photos').delete().eq('id', photoId);
   await refreshWishPhotosCache();
-  renderWishPhotoGallery(wishId);
-  renderWishlist();
+  refreshWishGalleries(wishId);
 }
 
 async function handleWishAddExtraPhoto(event, wishId){
@@ -6503,8 +6545,7 @@ async function handleWishAddExtraPhoto(event, wishId){
     const { error: insErr } = await sb.from('wishlist_photos').insert({ wishlist_id: wishId, storage_path: path, label: 'Autre', position: nextPos });
     if(insErr){ showToast("Photo envoyée sur Scaleway, mais erreur d'enregistrement en base : " + insErr.message, 'error'); return; }
     await refreshWishPhotosCache();
-    renderWishPhotoGallery(wishId);
-    renderWishlist();
+    refreshWishGalleries(wishId);
   } finally {
     UPLOAD_IN_PROGRESS = false;
   }
@@ -6535,8 +6576,7 @@ async function handleWishUploadChange(event, wishId, label, photoId){
     if(insErr){ showToast("Photo envoyée sur Scaleway, mais erreur d'enregistrement en base : " + insErr.message, 'error'); return; }
 
     await refreshWishPhotosCache();
-    renderWishPhotoGallery(wishId);
-    renderWishlist();
+    refreshWishGalleries(wishId);
   } finally {
     UPLOAD_IN_PROGRESS = false;
   }
@@ -6554,6 +6594,29 @@ async function handleWishUploadChange(event, wishId, label, photoId){
 const WISH_OBJET_SHARED_COLS = ['type_objet','titre','reference_catalogue','region','departement','mouvement','infos','details','taille',
   'fabricant','type_tirage','quantite_tirage','detail_tirage','date_fabrication','indice_rarete','etat_conservation',
   'type_variante','authenticite','notes'];
+
+// Envoie les photos préparées dans le formulaire de création d'un souhait.
+// Retourne la liste des envois en échec (vide = tout est passé).
+async function flushPendingWishPhotos(wishId){
+  const failures = [];
+  const stamp = Date.now();
+  const send = async (file, label, prefix, position) => {
+    try{
+      const { path } = await compressAndUploadPhoto(file, `wishlist/${wishId}/${prefix}-${stamp}-${Math.floor(Math.random()*1000)}`);
+      const { error } = await sb.from('wishlist_photos').insert({ wishlist_id: wishId, storage_path: path, label, position });
+      if(error) throw error;
+    }catch(err){
+      failures.push(label === 'Autre' ? 'photo supplémentaire' : 'photo ' + label);
+    }
+  };
+  const p = PENDING_WISH.photos;
+  if(p.Recto) await send(p.Recto, 'Recto', 'recto', null);
+  if(p.Verso) await send(p.Verso, 'Verso', 'verso', null);
+  let pos = 1;
+  for(const f of p.extras){ await send(f, 'Autre', 'autre', pos++); }
+  PENDING_WISH = { photos: { Recto: null, Verso: null, extras: [] } };
+  return failures;
+}
 
 // Enregistre le formulaire (insert ou update selon WISH_EDIT_ID) puis ouvre
 // la fiche du souhait — comme saveObjet() qui, création ou modification,
@@ -6604,6 +6667,21 @@ async function saveWish(){
       return;
     }
     resultId = data.id;
+    // Photos choisies avant l'enregistrement : envoyées maintenant que le souhait existe.
+    const pend = PENDING_WISH.photos;
+    if(pend.Recto || pend.Verso || pend.extras.length){
+      saveBtn.textContent = 'Envoi des photos…';
+      const failures = await flushPendingWishPhotos(resultId);
+      await refreshWishPhotosCache();
+      await loadWishlist();
+      const created = ALL_WISHLIST.find(x => String(x.id) === String(resultId));
+      if(failures.length && created){
+        openWishForm(created);
+        window.scrollTo({top: 0, behavior: 'instant'});
+        showToast('Souhait créé, mais ' + failures.length + ' envoi(s) ont échoué (' + failures.join(', ') + '). Ajoutez-les à nouveau ci-dessous.', 'error');
+        return;
+      }
+    }
   }
   await loadWishlist();
   const w = ALL_WISHLIST.find(x => String(x.id) === String(resultId));
