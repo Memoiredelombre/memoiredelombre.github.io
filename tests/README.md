@@ -27,7 +27,8 @@ Scaleway : un faux backend (`mock_stub.js`) est injecté dans une copie de
 - `test_wishlist.py` — l'onglet Souhaits est masqué pour un invité et
   visible pour l'admin, ajout de souhaits, ouverture d'une fiche de
   souhait avec restauration du scroll, conversion d'un souhait en objet du
-  catalogue ("Trouvé").
+  catalogue ("Trouvé"), photos gérées depuis la page de modification (fiche
+  en lecture seule) et photos choisies dès la création.
 - `test_sources.py` — les sources d'une fiche objet (références, lien,
   document joint) : invisibles sur la fiche d'un objet qui n'en a pas,
   aucune gestion possible depuis la fiche elle-même (même en admin), ajout
