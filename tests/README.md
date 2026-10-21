@@ -43,6 +43,11 @@ Scaleway : un faux backend (`mock_stub.js`) est injecté dans une copie de
   ajout/suppression, sources, un seul titre « Sources », suppression de
   l'objet), création avec photos et sources en une seule fois, bloc « Top plus-value »
   (4 objets, don à 0 €), et graphique « Acquisitions dans le temps » (année / mois).
+- `test_corrections.py` — non-régression des corrections de l'audit : liens des
+  Notes (aucun code injectable via un guillemet), liens de sources (seuls
+  http/https/www cliquables), plus-value du dashboard calculée sur les objets
+  ayant prix ET valeur, et barres cliquables Fabricants/Régions (noms avec
+  guillemets, nombre d'objets du catalogue identique à celui de la barre).
 
 Chaque test vérifie aussi qu'aucune erreur JavaScript ne s'est produite
 pendant le parcours qu'il joue.
@@ -59,6 +64,7 @@ python3 tests/test_admin.py
 python3 tests/test_wishlist.py
 python3 tests/test_sources.py
 python3 tests/test_parcours.py
+python3 tests/test_corrections.py
 ```
 
 Chaque script affiche `[OK]` ou `[FAIL]` ligne par ligne, et se termine par
