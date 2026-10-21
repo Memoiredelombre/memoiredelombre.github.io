@@ -1849,6 +1849,13 @@ function esc(text){
     .replace(/"/g, '&quot;');
 }
 
+// Attribut data-nav pour les éléments cliquables du dashboard : la valeur (qui peut contenir
+// guillemets, apostrophes, antislash...) est transportée en JSON échappé plutôt que recollée
+// dans un onclick="..." où un seul guillemet cassait le clic. Voir l'écouteur "data-nav".
+function navAttr(opts){
+  return `data-nav="${esc(JSON.stringify(opts))}"`;
+}
+
 const MOIS_FR = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
 
 // Affiche une date de fabrication quelle que soit sa précision : jour connu
@@ -1878,16 +1885,35 @@ function formatPartialDate(raw){
 // Mise en forme légère pour les champs de texte libre (Infos, Notes) :
 // échappe le HTML par sécurité, puis applique **gras**, *italique*, liens
 // cliquables détectés automatiquement, et conserve les retours à la ligne.
+// Un lien de source saisi à la main ne devient cliquable que s'il s'agit d'une adresse
+// web (http/https, ou www. complété en https). Sans ça, une valeur du type
+// "javascript:..." deviendrait un lien exécutant du code au clic chez les visiteurs.
+function safeLinkUrl(raw){
+  const u = String(raw || '').trim();
+  if(/^https?:\/\//i.test(u)) return u;
+  if(/^www\./i.test(u)) return 'https://' + u;
+  return '';
+}
+
 function formatRichText(text){
   if(!text) return '—';
-  let safe = text
+  // Échappement complet (y compris " et ') : le texte est ensuite inséré dans des
+  // attributs href="..." — un guillemet non neutralisé permettrait d'y glisser
+  // un attribut (onmouseover=...) et donc d'exécuter du code chez les visiteurs.
+  let safe = String(text)
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
-  // Liens cliquables (http/https/www.), avant le gras/italique pour ne pas casser les URL
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+  // Liens cliquables (http/https/www.) : extraits dans des jetons AVANT le gras/italique,
+  // pour que les * présents dans une URL ne soient pas transformés en balises (ce qui
+  // casserait l'attribut href), puis remis en place à la fin.
+  const links = [];
   safe = safe.replace(/(https?:\/\/[^\s<]+|www\.[^\s<]+)/g, (match)=>{
     const href = match.startsWith('www.') ? 'https://' + match : match;
-    return `<a href="${href}" target="_blank" rel="noopener noreferrer">${match}</a>`;
+    links.push(`<a href="${href}" target="_blank" rel="noopener noreferrer">${match}</a>`);
+    return '\u0000' + (links.length - 1) + '\u0000';
   });
   // **gras**
   safe = safe.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
@@ -1895,7 +1921,7 @@ function formatRichText(text){
   safe = safe.replace(/\*(.+?)\*/g, '<em>$1</em>');
   // Retours à la ligne
   safe = safe.replace(/\n/g, '<br>');
-  return safe;
+  return safe.replace(/\u0000(\d+)\u0000/g, (_, i)=> links[Number(i)]);
 }
 
 const raretePos = code => ({X:1,XX:2,XXX:3,XXXX:4,M:5}[code] || 0);
@@ -2335,8 +2361,17 @@ function renderDashboard(){
   const currentYear = new Date().getFullYear();
   const totalInvesti = ALL_OBJETS.reduce((s,o)=> s + (Number(o.prix_achat)||0), 0);
   const totalValeur = ALL_OBJETS.reduce((s,o)=> s + (Number(o.valeur_estimee_actuelle)||0), 0);
-  const plusValueTotale = totalValeur - totalInvesti;
-  const nbAvecValeur = ALL_OBJETS.filter(o => o.valeur_estimee_actuelle !== null && o.valeur_estimee_actuelle !== undefined).length;
+  // Plus-value : calculée uniquement sur les objets comparables, c'est-à-dire ceux qui ont
+  // à la fois un prix d'achat (0 € accepté : objet reçu) ET une valeur estimée. Sans ça, la
+  // valeur d'un objet sans prix (ou le prix d'un objet sans valeur) fausserait le total.
+  // Même règle que le bloc "Top plus-value".
+  const comparables = ALL_OBJETS.filter(o =>
+    o.prix_achat !== null && o.prix_achat !== undefined && o.prix_achat !== '' &&
+    o.valeur_estimee_actuelle !== null && o.valeur_estimee_actuelle !== undefined && o.valeur_estimee_actuelle !== '');
+  const investiComparables = comparables.reduce((s,o)=> s + (Number(o.prix_achat)||0), 0);
+  const valeurComparables = comparables.reduce((s,o)=> s + (Number(o.valeur_estimee_actuelle)||0), 0);
+  const plusValueTotale = valeurComparables - investiComparables;
+  const nbAvecValeur = comparables.length;
   const nbAvecPrix = ALL_OBJETS.filter(o => o.prix_achat !== null && o.prix_achat !== undefined).length;
   const acqCetteAnnee = ALL_OBJETS.filter(o => o.date_acquisition && new Date(o.date_acquisition).getFullYear() === currentYear).length;
   const estimCetteAnnee = ALL_OBJETS.filter(o => o.date_estimation && new Date(o.date_estimation).getFullYear() === currentYear).length;
@@ -2349,8 +2384,10 @@ function renderDashboard(){
 
   document.getElementById('kpiInvesti').textContent = EUR(totalInvesti);
   document.getElementById('kpiValeur').textContent = EUR(totalValeur);
-  document.getElementById('kpiPlusValue').textContent = EUR(plusValueTotale);
-  document.getElementById('kpiPlusValuePct').textContent = totalInvesti ? `${plusValueTotale >= 0 ? '+' : ''}${Math.round(plusValueTotale/totalInvesti*100)}% sur le capital investi` : '—';
+  document.getElementById('kpiPlusValue').textContent = nbAvecValeur ? EUR(plusValueTotale) : '—';
+  document.getElementById('kpiPlusValuePct').textContent = investiComparables
+    ? `${plusValueTotale >= 0 ? '+' : ''}${Math.round(plusValueTotale/investiComparables*100)}% sur ${nbAvecValeur} objet${nbAvecValeur>1?'s':''} avec prix et valeur`
+    : (nbAvecValeur ? `sur ${nbAvecValeur} objet${nbAvecValeur>1?'s':''} avec prix et valeur` : '—');
   document.getElementById('kpiPlusValueMoy').textContent = nbAvecValeur ? EUR(plusValueTotale / nbAvecValeur) : '—';
   document.getElementById('kpiAcqAnnee').textContent = acqCetteAnnee;
   document.getElementById('kpiEstimAnnee').textContent = estimCetteAnnee;
@@ -2443,7 +2480,7 @@ function renderDepartementChart(){
   }
   const max = Math.max(1, ...entries.map(([,n])=>n));
   document.getElementById('departementList').innerHTML = entries.map(([p,n])=>`
-    <div class="prov-row clickable-stat" onclick="navigateToFilteredCatalogue({query:'${p.replace(/'/g,"\\'")}'})">
+    <div class="prov-row clickable-stat" ${navAttr({exact:{field:'region', value:p, multi:true, label:'Région : '+p}})}>
       <div class="pl" style="width:170px;" title="${esc(p)}">${esc(p)}</div>
       <div class="prov-track"><div class="prov-fill" style="width:${(n/max*100).toFixed(0)}%"></div></div>
       <div class="prov-n">${n}</div>
@@ -2481,7 +2518,7 @@ function renderMouvementList(){
   document.getElementById('mouvementList').innerHTML = entries.map(([p,n])=>{
     const raw = MOUVEMENT_LABELS_REVERSE[p] || p;
     return `
-    <div class="prov-row clickable-stat" onclick="navigateToFilteredCatalogue({mouvement:'${raw.replace(/'/g,"\\'")}'})">
+    <div class="prov-row clickable-stat" ${navAttr({mouvement: raw})}>
       <div class="pl" title="${esc(p)}">${esc(p)}</div>
       <div class="prov-track"><div class="prov-fill" style="width:${(n/max*100).toFixed(0)}%"></div></div>
       <div class="prov-n">${n}</div>
@@ -2509,7 +2546,7 @@ function renderBarBlock(elId, values, filterKey){
   const max = Math.max(1, ...top.map(([,n])=>n));
   document.getElementById(elId).innerHTML = top.map(([p,n])=>{
     const clickable = filterKey && p !== 'Autres';
-    const onclick = clickable ? ` onclick="navigateToFilteredCatalogue({${filterKey}:'${p.replace(/'/g,"\\'")}'})"` : '';
+    const onclick = clickable ? ' ' + navAttr({[filterKey]: p}) : '';
     return `
     <div class="prov-row${clickable ? ' clickable-stat' : ''}"${onclick}>
       <div class="pl" title="${esc(p)}">${esc(p)}</div>
@@ -2596,7 +2633,7 @@ function renderProvenance(){
   const max = Math.max(1, ...top.map(([,v])=>v.n));
   el.innerHTML = top.map(([p,v])=>{
     const clickable = p !== 'Autres';
-    const onclick = clickable ? ` onclick="navigateToFilteredCatalogue({provenance:'${p.replace(/'/g,"\\'")}'})"` : '';
+    const onclick = clickable ? ' ' + navAttr({provenance: p}) : '';
     return `
     <div class="prov-row${clickable ? ' clickable-stat' : ''}"${onclick}>
       <div class="pl" title="${esc(p)}">${esc(p)}</div>
@@ -2661,7 +2698,7 @@ function renderFabricantChart(){
   }
   const max = Math.max(1, ...entries.map(([,n])=>n));
   document.getElementById('fabricantList').innerHTML = entries.map(([p,n])=>`
-    <div class="prov-row clickable-stat" onclick="navigateToFilteredCatalogue({query:'${p.replace(/'/g,"\\'")}'})">
+    <div class="prov-row clickable-stat" ${navAttr({exact:{field:'fabricant', value:p, multi:false, label:'Fabricant : '+p}})}>
       <div class="pl" style="width:170px;" title="${esc(p)}">${esc(p)}</div>
       <div class="prov-track"><div class="prov-fill" style="width:${(n/max*100).toFixed(0)}%"></div></div>
       <div class="prov-n">${n}</div>
@@ -2776,6 +2813,18 @@ const ADV_FILTERS = { advRarete:'', advEtat:'', advMouvement:'', advAuthenticite
 let QUICK_DATE_FILTER = null;
 // Filtre "rapide" par provenance (texte libre, pas de puce dédiée vu la diversité des valeurs)
 let QUICK_PROVENANCE_FILTER = null;
+// Filtre "rapide" exact sur un champ texte (fabricant, région...) : { field, value, multi, label }.
+// multi=true pour un champ qui peut contenir plusieurs valeurs séparées par ";" (région).
+// Remplace la recherche texte utilisée avant, qui ramenait aussi les objets où le mot
+// apparaissait ailleurs (titre, notes...) et donnait plus d'objets que la barre cliquée.
+let QUICK_EXACT_FILTER = null;
+function matchesQuickExact(o){
+  if(!QUICK_EXACT_FILTER) return true;
+  const raw = o[QUICK_EXACT_FILTER.field];
+  if(raw === null || raw === undefined || raw === '') return false;
+  if(QUICK_EXACT_FILTER.multi) return String(raw).split(';').map(x=>x.trim()).includes(QUICK_EXACT_FILTER.value);
+  return raw === QUICK_EXACT_FILTER.value;
+}
 
 // Lit le type d'objet actuellement sélectionné (puce active dans la barre de filtres du catalogue).
 // Toujours utiliser cette fonction plutôt qu'un querySelector direct : si jamais aucune puce
@@ -2806,7 +2855,7 @@ function goToEstimationsAnnee(){
 function renderQuickDateFilterTag(){
   const el = document.getElementById('quickFilterTag');
   if(!el) return;
-  const label = QUICK_DATE_FILTER ? QUICK_DATE_FILTER.label : (QUICK_PROVENANCE_FILTER ? `Provenance : ${QUICK_PROVENANCE_FILTER}` : null);
+  const label = QUICK_DATE_FILTER ? QUICK_DATE_FILTER.label : (QUICK_PROVENANCE_FILTER ? `Provenance : ${QUICK_PROVENANCE_FILTER}` : (QUICK_EXACT_FILTER ? QUICK_EXACT_FILTER.label : null));
   if(!label){ el.innerHTML = ''; el.style.display = 'none'; return; }
   el.style.display = 'flex';
   el.innerHTML = `<span class="chip active">${esc(label)} <button onclick="clearQuickDateFilter()" style="background:rgba(0,0,0,.12);border:none;color:inherit;cursor:pointer;font-weight:700;width:18px;height:18px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;line-height:1;padding:0;flex:none;margin-left:6px;">×</button></span>`;
@@ -2815,6 +2864,7 @@ function renderQuickDateFilterTag(){
 function clearQuickDateFilter(){
   QUICK_DATE_FILTER = null;
   QUICK_PROVENANCE_FILTER = null;
+  QUICK_EXACT_FILTER = null;
   renderQuickDateFilterTag();
   renderGrid(getActiveTypeFilter(), document.getElementById('searchInput').value);
 }
@@ -2823,6 +2873,16 @@ function clearQuickDateFilter(){
 // état propre (comme le bouton "Filtres"). Utilisée par tous les éléments
 // cliquables du dashboard (type, état, mouvement, authenticité, dates d'acquisition/estimation).
 // opts : { type, rarete, etat, mouvement, authenticite, dateFilter:{field,year,month,label} }
+// Clic sur un élément du dashboard portant data-nav="{...}" (voir navAttr) : ouvre le
+// catalogue filtré correspondant.
+document.addEventListener('click', e=>{
+  const el = e.target.closest ? e.target.closest('[data-nav]') : null;
+  if(!el) return;
+  let opts = null;
+  try{ opts = JSON.parse(el.dataset.nav); }catch(_){ return; }
+  navigateToFilteredCatalogue(opts);
+});
+
 function navigateToFilteredCatalogue(opts){
   opts = opts || {};
   switchView('catalogue');
@@ -2847,6 +2907,7 @@ function navigateToFilteredCatalogue(opts){
 
   QUICK_DATE_FILTER = opts.dateFilter || null;
   QUICK_PROVENANCE_FILTER = opts.provenance || null;
+  QUICK_EXACT_FILTER = opts.exact || null;
   renderQuickDateFilterTag();
 
   LAST_CAT_FILTER = opts.type || 'Tous';
@@ -2892,7 +2953,7 @@ function renderGrid(filterType, query){
       if(QUICK_DATE_FILTER.month !== null && d.getMonth() !== QUICK_DATE_FILTER.month) return false;
       return true;
     })();
-    const matchProvenance = !QUICK_PROVENANCE_FILTER || o.provenance === QUICK_PROVENANCE_FILTER;
+    const matchProvenance = (!QUICK_PROVENANCE_FILTER || o.provenance === QUICK_PROVENANCE_FILTER) && matchesQuickExact(o);
     return matchType && matchQuery && matchDept && matchRarete && matchEtat && matchMouvement && matchAuthenticite && matchQuickDate && matchProvenance;
   });
   items = sortItems(items, CURRENT_SORT);
@@ -3213,7 +3274,7 @@ function renderSourcesSection(uid, containerId, editable){
         ${s.auteur_editeur ? `<div class="source-auteur">${esc(s.auteur_editeur)}</div>` : ''}
         ${s.note ? `<div class="source-note rich-text">${formatRichText(s.note)}</div>` : ''}
         <div class="source-links">
-          ${s.lien ? `<a href="${esc(s.lien)}" target="_blank" rel="noopener noreferrer">Voir le lien ↗</a>` : ''}
+          ${s.lien ? (safeLinkUrl(s.lien) ? `<a href="${esc(safeLinkUrl(s.lien))}" target="_blank" rel="noopener noreferrer">Voir le lien ↗</a>` : `<span>Lien : ${esc(s.lien)}</span>`) : ''}
           ${s.fichier_path ? `<a href="${esc(scalewayPublicUrl(s.fichier_path))}" target="_blank" rel="noopener noreferrer">${esc(s.fichier_nom) || 'Ouvrir le document'} ↗</a>` : ''}
         </div>
       </div>
@@ -4388,6 +4449,7 @@ document.getElementById('advSearchReset').addEventListener('click', ()=>{
   ADV_FILTERS.advAuthenticite = '';
   QUICK_DATE_FILTER = null;
   QUICK_PROVENANCE_FILTER = null;
+  QUICK_EXACT_FILTER = null;
   renderQuickDateFilterTag();
   const active = getActiveTypeFilter();
   renderGrid(active, document.getElementById('searchInput').value);
@@ -4738,7 +4800,7 @@ refreshAuthState().then(()=> loadAll()).then(()=> initFranceMap());
         if(QUICK_DATE_FILTER.month !== null && d.getMonth() !== QUICK_DATE_FILTER.month) return false;
         return true;
       })();
-      const matchProvenance = !QUICK_PROVENANCE_FILTER || o.provenance === QUICK_PROVENANCE_FILTER;
+      const matchProvenance = (!QUICK_PROVENANCE_FILTER || o.provenance === QUICK_PROVENANCE_FILTER) && matchesQuickExact(o);
       return matchType && matchQuery && matchDept && matchRarete && matchEtat && matchMouvement && matchAuthenticite && matchQuickDate && matchProvenance;
     });
     items = sortItems(items, CURRENT_SORT);
