@@ -263,11 +263,20 @@
 
   /* ---------- Topbar contents ---------- */
   .nav-search{font-size:13px; font-family:'Space Grotesk',sans-serif; padding:0 14px 0 38px; height:40px; box-sizing:border-box; border:1px solid var(--border); border-radius:var(--r-sm); background:var(--surface-2); color:var(--ink); width:270px; max-width:100%; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%23979284' stroke-width='1.6' viewBox='0 0 24 24'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m21 21-4.3-4.3'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:12px center; transition:box-shadow .15s ease, border-color .15s ease;}
+  /* Croix d'effacement : visible seulement quand le champ contient du texte
+     (:placeholder-shown = champ vide), y compris si le texte est posé par le code. */
+  .nav-search-field{position:relative; display:flex; align-items:center; min-width:0;}
+  .nav-search-field .nav-search{padding-right:36px;}
+  .nav-search-clear{position:absolute; right:9px; top:50%; transform:translateY(-50%); width:22px; height:22px; border-radius:50%; border:none; background:var(--surface-hover); color:var(--ink-soft); display:none; align-items:center; justify-content:center; cursor:pointer; padding:0;}
+  .nav-search-clear svg{width:11px; height:11px; display:block;}
+  .nav-search-clear:hover{color:var(--ink); background:var(--accent-soft-strong);}
+  .nav-search:not(:placeholder-shown) ~ .nav-search-clear{display:flex;}
   .nav-search:focus{outline:none; border-color:var(--accent); box-shadow:0 0 0 4px var(--accent-soft);}
   .topbar-search-wrap{display:flex; align-items:center; gap:10px;}
   .topbar-spacer{flex:1;}
   @media(max-width:700px){
     .nav-search{width:100%;}
+    .nav-search-field{flex:1;}
     .topbar-search-wrap{order:5; width:100%; margin-top:2px;}
     .topbar{gap:10px;}
     .header-actions{gap:6px;}
@@ -1131,7 +1140,10 @@ try{
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
       </button>
       <div class="topbar-search-wrap">
-        <input type="text" id="searchInput" class="nav-search" placeholder="Rechercher un objet…">
+        <div class="nav-search-field">
+          <input type="text" id="searchInput" class="nav-search" placeholder="Rechercher un objet…">
+          <button type="button" class="nav-search-clear" id="searchClearBtn" title="Effacer la recherche" aria-label="Effacer la recherche"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+        </div>
         <button class="btn btn-secondary" id="advSearchToggle" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg> <span class="btn-label">Filtres</span></button>
       </div>
       <div class="topbar-spacer"></div>
@@ -4192,6 +4204,13 @@ function switchView(name){
     if(advPanel) advPanel.style.display = 'none';
     if(advBtn) advBtn.classList.remove('active');
   }
+  // La recherche du haut ne concerne que le catalogue : sur le dashboard, la
+  // galerie ou les souhaits elle ne filtre rien, on la vide donc (et le
+  // catalogue repasse sans filtre texte). Fiche et formulaire sont exclus pour
+  // que « Retour » retrouve la recherche en cours.
+  if(['dashboard','galerie','wishlist'].includes(name)){
+    try{ clearCatalogueSearch(); }catch(e){ /* variables du catalogue pas encore initialisées au tout premier affichage */ }
+  }
 }
 
 document.getElementById('tabs').addEventListener('click', e=>{
@@ -4264,6 +4283,26 @@ document.querySelectorAll('.view-toggle-btn').forEach(btn=>{
     const active = getActiveTypeFilter();
     renderGrid(active, document.getElementById('searchInput').value);
   });
+});
+// Vide la recherche texte du haut et réaffiche le catalogue sans ce filtre
+// (les puces de type, tri et filtres avancés sont conservés).
+function clearCatalogueSearch(){
+  const input = document.getElementById('searchInput');
+  if(!input.value && !LAST_CAT_QUERY) return;
+  input.value = '';
+  LAST_CAT_QUERY = '';
+  renderGrid(getActiveTypeFilter(), '');
+}
+document.getElementById('searchClearBtn').addEventListener('click', ()=>{
+  const input = document.getElementById('searchInput');
+  clearCatalogueSearch();
+  input.focus();
+});
+document.getElementById('searchInput').addEventListener('keydown', e=>{
+  if(e.key === 'Escape' && e.target.value){
+    e.preventDefault();
+    clearCatalogueSearch();
+  }
 });
 document.getElementById('searchInput').addEventListener('input', e=>{
   if(!document.getElementById('view-catalogue').classList.contains('active')){
