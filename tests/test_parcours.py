@@ -62,6 +62,50 @@ async def main():
         label = (await page.locator("#advSearchToggle .btn-label").inner_text()).strip()
         check("le bouton de recherche avancée s'appelle « Filtres »", label == "Filtres", label)
 
+        # ---- Recherche du haut : croix, Échap, et vidage hors catalogue ----
+        await page.evaluate("() => switchView('catalogue')")
+        await page.wait_for_timeout(300)
+        full_count = await page.locator("#view-catalogue [data-uid]").count()
+        check("pas de croix d'effacement tant que le champ est vide", not await page.locator("#searchClearBtn").is_visible())
+        await page.fill("#searchInput", "test 1")
+        await page.wait_for_timeout(300)
+        filtered_count = await page.locator("#view-catalogue [data-uid]").count()
+        check("la recherche filtre le catalogue", 0 < filtered_count < full_count, f"{filtered_count} / {full_count}")
+        check("la croix apparaît dès qu'il y a du texte", await page.locator("#searchClearBtn").is_visible())
+        await page.click("#searchClearBtn")
+        await page.wait_for_timeout(300)
+        check("un clic sur la croix vide le champ", await page.locator("#searchInput").input_value() == "")
+        check("… et réaffiche tout le catalogue", await page.locator("#view-catalogue [data-uid]").count() == full_count)
+        check("la croix disparaît une fois le champ vide", not await page.locator("#searchClearBtn").is_visible())
+        await page.fill("#searchInput", "test 1")
+        await page.press("#searchInput", "Escape")
+        await page.wait_for_timeout(300)
+        check("la touche Échap vide aussi la recherche",
+              await page.locator("#searchInput").input_value() == "" and await page.locator("#view-catalogue [data-uid]").count() == full_count)
+        # Fiche puis Retour : la recherche est conservée
+        await page.fill("#searchInput", "test 1")
+        await page.wait_for_timeout(300)
+        await page.locator("#view-catalogue [data-uid]").first.click()
+        await page.wait_for_timeout(300)
+        await page.click("#backBtn")
+        await page.wait_for_timeout(300)
+        check("fiche puis Retour : la recherche est conservée",
+              await page.locator("#searchInput").input_value() == "test 1"
+              and await page.locator("#view-catalogue [data-uid]").count() == filtered_count)
+        # Autres onglets : champ vidé, catalogue complet au retour
+        await page.click('nav.tabs button[data-view="dashboard"]')
+        await page.wait_for_timeout(300)
+        check("sur le dashboard, le champ de recherche est vide", await page.locator("#searchInput").input_value() == "")
+        await page.fill("#searchInput", "test 2")
+        await page.wait_for_timeout(200)
+        await page.click('nav.tabs button[data-view="galerie"]')
+        await page.wait_for_timeout(300)
+        check("sur la galerie, le champ de recherche est vide", await page.locator("#searchInput").input_value() == "")
+        await page.click('nav.tabs button[data-view="catalogue"]')
+        await page.wait_for_timeout(300)
+        check("de retour sur le catalogue : champ vide et catalogue complet",
+              await page.locator("#searchInput").input_value() == "" and await page.locator("#view-catalogue [data-uid]").count() == full_count)
+
         # ---- Bouton Retour : catalogue ----
         await page.evaluate("() => { switchView('catalogue'); }")
         await page.wait_for_timeout(300)
