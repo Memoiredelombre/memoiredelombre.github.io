@@ -129,6 +129,52 @@ async def main():
         check("la croix de la puce retire le filtre", await page.evaluate("() => CATALOGUE_ITEMS.length") == total)
         check("aucune erreur JavaScript", not errors, str(errors))
 
+        # ---- 5. Recherche sur mobile : clavier ----
+        mctx = await browser.new_context(viewport={"width": 390, "height": 800}, has_touch=True, is_mobile=True)
+        m = await mctx.new_page()
+        merrs = []
+        m.on("pageerror", lambda e: merrs.append(str(e)))
+        await m.goto(f"file://{PREVIEW}")
+        await m.wait_for_timeout(1000)
+        if await m.locator("#loginCancelBtn").is_visible():
+            await m.click("#loginCancelBtn")
+        await m.wait_for_timeout(500)
+        ST = "() => ({v: document.getElementById('searchInput').value, n: CATALOGUE_ITEMS.length, view: document.querySelector('section.view.active').id, focus: document.activeElement && document.activeElement.id})"
+        await m.tap("#searchInput")
+        await m.keyboard.type("objet test 1", delay=20)
+        await m.wait_for_timeout(300)
+        await m.set_viewport_size({"width": 390, "height": 450})  # le clavier s'ouvre
+        await m.wait_for_timeout(300)
+        st = await m.evaluate(ST)
+        check("mobile : la recherche s'applique en tapant", st["n"] == 11 and st["view"] == "view-catalogue", str(st))
+        attrs = await m.evaluate("() => document.getElementById('searchInput').getAttribute('enterkeyhint')")
+        check("mobile : le clavier propose la touche « Rechercher »", attrs == "search", str(attrs))
+        await m.keyboard.press("Enter")
+        await m.wait_for_timeout(200)
+        st = await m.evaluate(ST)
+        check("mobile : la touche Entrée ferme le clavier (champ quitté)", st["focus"] != "searchInput", str(st))
+        check("mobile : Entrée garde la recherche et ses résultats", st["v"] == "objet test 1" and st["n"] == 11, str(st))
+        # le clavier est ouvert et un « retour » sert à le fermer
+        await m.tap("#searchInput")
+        await m.wait_for_timeout(200)
+        await m.set_viewport_size({"width": 390, "height": 450})
+        await m.wait_for_timeout(200)
+        await m.go_back()
+        await m.wait_for_timeout(500)
+        st = await m.evaluate(ST)
+        check("mobile : un retour pendant que le clavier est ouvert garde la recherche",
+              st["view"] == "view-catalogue" and st["v"] == "objet test 1" and st["n"] == 11, str(st))
+        check("mobile : ce retour referme le clavier", st["focus"] != "searchInput", str(st))
+        # clavier fermé depuis un moment : le retour fonctionne normalement
+        await m.set_viewport_size({"width": 390, "height": 800})
+        await m.wait_for_timeout(1500)
+        await m.go_back()
+        await m.wait_for_timeout(500)
+        st = await m.evaluate(ST)
+        check("mobile : clavier fermé, le retour ramène bien à l'écran précédent", st["view"] == "view-dashboard", str(st))
+        check("mobile : aucune erreur JavaScript", not merrs, str(merrs))
+        await mctx.close()
+
         await browser.close()
     if FAILURES:
         print(f"\n{len(FAILURES)} échec(s) :", *FAILURES, sep="\n - ")
