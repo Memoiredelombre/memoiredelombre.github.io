@@ -1141,7 +1141,7 @@ try{
       </button>
       <div class="topbar-search-wrap">
         <div class="nav-search-field">
-          <input type="text" id="searchInput" class="nav-search" placeholder="Rechercher un objet…">
+          <input type="text" id="searchInput" class="nav-search" placeholder="Rechercher un objet…" enterkeyhint="search" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
           <button type="button" class="nav-search-clear" id="searchClearBtn" title="Effacer la recherche" aria-label="Effacer la recherche"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
         </div>
         <button class="btn btn-secondary" id="advSearchToggle" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg> <span class="btn-label">Filtres</span></button>
@@ -4364,7 +4364,45 @@ document.getElementById('searchInput').addEventListener('keydown', e=>{
     e.preventDefault();
     clearCatalogueSearch();
   }
+  // Touche « Rechercher / Entrée » du clavier mobile : la recherche est déjà appliquée au fil
+  // de la frappe, il suffit donc de refermer le clavier pour laisser voir les résultats.
+  if(e.key === 'Enter'){
+    e.preventDefault();
+    e.target.blur();
+  }
 });
+// Faire défiler la liste de résultats referme aussi le clavier (comportement habituel d'un
+// champ de recherche sur mobile) au lieu de le laisser couvrir la moitié de l'écran.
+['catalogueGrid'].forEach(id=>{
+  const el = document.getElementById(id);
+  if(el) el.addEventListener('touchstart', ()=>{
+    const input = document.getElementById('searchInput');
+    if(document.activeElement === input) input.blur();
+  }, {passive:true});
+});
+
+// ---- Clavier mobile ouvert pendant la recherche ----
+// Certains navigateurs mobiles déclenchent un « retour » en refermant le clavier (geste ou
+// bouton retour) : l'appli quittait alors le catalogue et la recherche était effacée.
+// On repère donc quand le clavier est ouvert (la hauteur visible rétrécit nettement) ou
+// vient juste de se fermer, pour traiter ce retour comme « fermer le clavier » seulement.
+let KBD_BASE_H = window.innerHeight, KBD_BASE_W = window.innerWidth;
+let KBD_OPEN = false, KBD_CLOSED_AT = 0;
+function updateKbdState(){
+  if(window.innerWidth !== KBD_BASE_W){ KBD_BASE_W = window.innerWidth; KBD_BASE_H = window.innerHeight; }
+  KBD_BASE_H = Math.max(KBD_BASE_H, window.innerHeight);
+  const vvH = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+  const open = (KBD_BASE_H - Math.min(window.innerHeight, vvH)) > 120;
+  if(KBD_OPEN && !open) KBD_CLOSED_AT = Date.now();
+  KBD_OPEN = open;
+}
+window.addEventListener('resize', updateKbdState);
+if(window.visualViewport) window.visualViewport.addEventListener('resize', updateKbdState);
+function searchKeyboardOpen(){
+  if(document.activeElement !== document.getElementById('searchInput')) return false;
+  updateKbdState();
+  return KBD_OPEN || (Date.now() - KBD_CLOSED_AT) < 900;
+}
 document.getElementById('searchInput').addEventListener('input', e=>{
   if(!document.getElementById('view-catalogue').classList.contains('active')){
     switchView('catalogue');
@@ -4482,6 +4520,16 @@ try{
 
 window.addEventListener('popstate', (e)=>{
   const state = e.state || {view:'dashboard', uid:null};
+  // Recherche en cours avec le clavier mobile ouvert (ou à peine refermé) : ce « retour » sert
+  // à fermer le clavier, pas à quitter le catalogue. On referme le clavier, on remet l'entrée
+  // d'historique du catalogue et on garde la recherche telle quelle.
+  if(state.view !== 'catalogue' && state.view !== 'fiche'
+     && document.getElementById('view-catalogue').classList.contains('active')
+     && searchKeyboardOpen()){
+    document.getElementById('searchInput').blur();
+    pushNav('catalogue', null);
+    return;
+  }
   if(state.view==='fiche' && state.uid){
     showFiche(state.uid);
   } else {
