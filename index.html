@@ -4281,6 +4281,10 @@ document.getElementById('tabs').addEventListener('click', e=>{
   if(!view) return; // sécurité : ignore tout bouton sans data-view (ex: un bouton non-onglet cliqué à l'intérieur de la nav)
   switchView(view);
   pushNav(view, null);
+  // Changer de rubrique par le menu : on arrive toujours en haut de la page (sinon la
+  // position de défilement de la rubrique précédente est conservée). Le retour depuis une
+  // fiche, lui, restaure la position dans la liste : il ne passe pas par ce menu.
+  window.scrollTo({top: 0, behavior: 'instant'});
   if(view==='dashboard' && franceMap) setTimeout(()=> franceMap.invalidateSize(), 50);
 });
 window.addEventListener('resize', ()=>{
@@ -4407,6 +4411,7 @@ document.getElementById('searchInput').addEventListener('input', e=>{
   if(!document.getElementById('view-catalogue').classList.contains('active')){
     switchView('catalogue');
     pushNav('catalogue', null);
+    window.scrollTo({top: 0, behavior: 'instant'});
   }
   if(e.target.value && ACTIVE_DEPT_FILTER){
     ACTIVE_DEPT_FILTER = null;
