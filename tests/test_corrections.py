@@ -175,6 +175,51 @@ async def main():
         check("mobile : aucune erreur JavaScript", not merrs, str(merrs))
         await mctx.close()
 
+        # ---- 6. Changement de rubrique : arrivée en haut de page ; retour de fiche : même position ----
+        dpage = await browser.new_page(viewport={"width": 1440, "height": 900})
+        derrs = []
+        dpage.on("pageerror", lambda e: derrs.append(str(e)))
+        await dpage.goto(f"file://{PREVIEW}")
+        await dpage.wait_for_timeout(1000)
+        await dpage.fill("#loginEmail", "admin@test.fr")
+        await dpage.fill("#loginPassword", "test1234")
+        await dpage.click("#loginSubmitBtn")
+        await dpage.wait_for_timeout(1500)
+        await dpage.evaluate("""() => {
+            const base = ALL_OBJETS[0];
+            for (let i = 0; i < 90; i++) ALL_OBJETS.push(Object.assign({}, base, {uid: 'sc-' + i, id_public: 'SC-' + i, titre: 'Défilement ' + i}));
+            ALL_WISHLIST.length || 0;
+        }""")
+        for cible in ["galerie", "wishlist", "dashboard"]:
+            await dpage.click('nav.tabs button[data-view="catalogue"]')
+            await dpage.wait_for_timeout(500)
+            await dpage.evaluate("() => { renderGrid('Tous', ''); window.scrollTo(0, 1200); }")
+            await dpage.wait_for_timeout(300)
+            avant = await dpage.evaluate("() => window.scrollY")
+            await dpage.click(f'nav.tabs button[data-view="{cible}"]')
+            await dpage.wait_for_timeout(500)
+            apres = await dpage.evaluate("() => window.scrollY")
+            check(f"menu : du catalogue défilé vers « {cible} », on arrive en haut", avant > 500 and apres == 0, f"avant={avant} après={apres}")
+        # retour depuis une fiche : même position dans la liste
+        await dpage.click('nav.tabs button[data-view="catalogue"]')
+        await dpage.wait_for_timeout(500)
+        await dpage.evaluate("() => { renderGrid('Tous', ''); window.scrollTo(0, 1500); }")
+        await dpage.wait_for_timeout(300)
+        y0 = await dpage.evaluate("() => window.scrollY")
+        await dpage.evaluate("() => { CATALOGUE_SCROLL_Y = window.scrollY; }")
+        await dpage.locator("#catalogueGrid [data-uid]").nth(20).scroll_into_view_if_needed()
+        await dpage.evaluate("() => { CATALOGUE_SCROLL_Y = window.scrollY; }")
+        y1 = await dpage.evaluate("() => CATALOGUE_SCROLL_Y")
+        await dpage.locator("#catalogueGrid [data-uid]").nth(20).click()
+        await dpage.wait_for_timeout(600)
+        check("fiche ouverte depuis la liste défilée", await dpage.evaluate("() => document.querySelector('section.view.active').id") == "view-fiche")
+        await dpage.click("#backBtn")
+        await dpage.wait_for_timeout(700)
+        y2 = await dpage.evaluate("() => window.scrollY")
+        check("retour de la fiche : on retrouve la même position dans le catalogue", abs(y2 - y1) < 5 and y1 > 500, f"avant={y1} après={y2}")
+        check("défilement : aucune erreur JavaScript", not derrs, str(derrs))
+        await dpage.close()
+
         await browser.close()
     if FAILURES:
         print(f"\n{len(FAILURES)} échec(s) :", *FAILURES, sep="\n - ")
